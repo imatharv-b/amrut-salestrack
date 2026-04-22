@@ -6,6 +6,9 @@ const managerLinks = [
   { to: '/map', label: 'Live Map', icon: '🗺️' },
   { to: '/ledger', label: 'Collections Ledger', icon: '🧾' },
   { to: '/performance', label: 'Salesman Performance', icon: '👥' },
+  { to: '/routes', label: 'Manage Routes', icon: '🛣️' },
+  { to: '/stores', label: 'Manage Stores', icon: '🏪' },
+  { to: '/users', label: 'Manage Users', icon: '🛡️' },
 ]
 
 export default function Sidebar() {

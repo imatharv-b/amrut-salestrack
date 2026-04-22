@@ -5,6 +5,7 @@ import LoadingSpinner from './components/LoadingSpinner'
 
 // Auth Pages
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 
 // Salesman Pages
 import SalesmanHome from './pages/SalesmanHome'
@@ -13,10 +14,13 @@ import RecordCollection from './pages/RecordCollection'
 import MyVisits from './pages/MyVisits'
 import MapView from './pages/MapView' 
 
-// Manager Dashboard Pages (The 4 Views)
+// Manager Dashboard Pages
 import Dashboard from './pages/Dashboard'
 import CollectionsLedger from './pages/CollectionsLedger'
 import SalesmanPerformance from './pages/SalesmanPerformance'
+import ManageRoutes from './pages/ManageRoutes'
+import ManageStores from './pages/ManageStores'
+import ManageUsers from './pages/ManageUsers'
 
 import { syncOfflineVisits } from './lib/syncVisits'
 import { useEffect } from 'react'
@@ -50,6 +54,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           
@@ -58,12 +63,15 @@ export default function App() {
              isManager ? <Dashboard /> : (isSalesman ? <SalesmanHome /> : <div>No Assigned Role</div>)
           } />
 
-          {/* Manager Specific Routes (The 4 Views) */}
+          {/* Manager Specific Routes */}
           {isManager && (
             <>
               <Route path="/map" element={<MapView />} />
               <Route path="/ledger" element={<CollectionsLedger />} />
               <Route path="/performance" element={<SalesmanPerformance />} />
+              <Route path="/routes" element={<ManageRoutes />} />
+              <Route path="/stores" element={<ManageStores />} />
+              <Route path="/users" element={<ManageUsers />} />
             </>
           )}
 

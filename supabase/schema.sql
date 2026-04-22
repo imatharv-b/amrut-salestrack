@@ -101,23 +101,23 @@ ALTER TABLE public.collections ENABLE ROW LEVEL SECURITY;
 -- Helper Function to fetch user role safely
 CREATE OR REPLACE FUNCTION public.get_user_role() RETURNS text AS $$
     SELECT role FROM public.users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION public.get_user_route() RETURNS uuid AS $$
     SELECT route_id FROM public.users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
 
 -- Manager Policies (Full Access)
 CREATE POLICY "Manager Full Access Routes" ON public.routes FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
-CREATE POLICY "Manager Full Access Users" ON public.users FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
 CREATE POLICY "Manager Full Access Stores" ON public.stores FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
 CREATE POLICY "Manager Full Access Visits" ON public.visits FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
 CREATE POLICY "Manager Full Access Invoices" ON public.invoices FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
 CREATE POLICY "Manager Full Access Collections" ON public.collections FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
 
--- Salesman Policies
--- Salesman can see their own profile
-CREATE POLICY "Salesman read own profile" ON public.users FOR SELECT TO authenticated USING (id = auth.uid() OR public.get_user_role() = 'salesman');
+-- Users Policies (Fixing RLS Recursion)
+CREATE POLICY "Authenticated users can read profiles" ON public.users FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Managers can modify profiles" ON public.users FOR ALL TO authenticated USING (public.get_user_role() = 'manager');
+
 
 -- Salesman can see their own route
 CREATE POLICY "Salesman read assigned route" ON public.routes FOR SELECT TO authenticated USING (id = public.get_user_route());

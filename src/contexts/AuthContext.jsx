@@ -92,6 +92,29 @@ export function AuthProvider({ children }) {
     return data
   }
 
+  // Sign up new user (Salesman Flow)
+  async function signUp(email, password, name, phone) {
+    if (DEMO_MODE) {
+       throw new Error('Registration is disabled via Demo Mode')
+    }
+
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) throw error
+
+    // Generate the public profile
+    if (data?.user) {
+      const { error: profileError } = await supabase.from('users').insert({
+        id: data.user.id,
+        name,
+        phone,
+        role: 'salesman' // Automatic default setup
+      })
+      if (profileError) throw profileError
+    }
+
+    return data
+  }
+
   // Sign out
   async function signOut() {
     if (DEMO_MODE) {
@@ -113,6 +136,7 @@ export function AuthProvider({ children }) {
     profile,
     loading,
     signIn,
+    signUp,
     signOut,
     isManager: profile?.role === 'manager',
     isSalesman: profile?.role === 'salesman',
