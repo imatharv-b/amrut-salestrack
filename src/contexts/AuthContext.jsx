@@ -46,22 +46,40 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
+    // Get initial session — wrapped in try-catch with guaranteed setLoading(false)
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          try {
+            await fetchProfile(session.user.id)
+          } catch (err) {
+            console.error('Failed to fetch profile on init:', err)
+            setProfile(null)
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to get auth session:', err)
+        setUser(null)
+        setProfile(null)
+      })
+      .finally(() => {
+        // CRITICAL: Always resolve loading so the app never shows a blank screen
         setLoading(false)
-      }
-    })
+      })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null)
         if (session?.user) {
-          await fetchProfile(session.user.id)
+          try {
+            await fetchProfile(session.user.id)
+          } catch (err) {
+            console.error('Profile fetch error on auth change:', err)
+            setProfile(null)
+          }
         } else {
           setProfile(null)
         }

@@ -56,10 +56,10 @@ export default function Sidebar() {
       <div className="p-4 border-t border-gray-800">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center text-white font-bold text-sm">
-            {profile?.full_name?.charAt(0) || 'U'}
+            {profile?.name?.charAt(0) || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{profile?.full_name || 'User'}</p>
+            <p className="text-sm font-medium text-white truncate">{profile?.name || 'User'}</p>
             <p className="text-xs text-gray-400 capitalize">{profile?.role || 'Manager'}</p>
           </div>
         </div>

@@ -29,11 +29,17 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg}'],
+        // Ensure new deployments take effect immediately instead of serving stale cache
+        skipWaiting: true,
+        clientsClaim: true,
+        // Don't pre-cache the index.html to avoid stale SPA shell
+        navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^(?!\/__).*/],
         // Cache the stores API endpoint so salesmen can view their routes offline
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/stores/,
-            handler: 'CacheFirst',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-stores-cache',
               expiration: {
@@ -48,7 +54,7 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: false
       }
     })
   ],
