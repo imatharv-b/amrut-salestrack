@@ -63,17 +63,24 @@ export default function ManageUsers() {
         if (!formData.email || !formData.password) throw new Error('Email and password are required')
         if (formData.password.length < 6) throw new Error('Password must be at least 6 characters')
         
+        // 1. Create a temporary Supabase client to sign up the user without logging the manager out
+        const tempSupabase = await import('@supabase/supabase-js').then(m => m.createClient(
+          import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co',
+          import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key',
+          { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+        ))
+        
         // Use a timeout promise to prevent hanging
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please try again.')), 10000))
         
-        // Create auth user via signUp
-        const authPromise = supabase.auth.signUp({ email: formData.email, password: formData.password })
+        // 2. Create auth user via temporary client
+        const authPromise = tempSupabase.auth.signUp({ email: formData.email, password: formData.password })
         const { data: signUpData, error: signUpErr } = await Promise.race([authPromise, timeoutPromise])
         
         if (signUpErr) throw signUpErr
         if (!signUpData?.user) throw new Error('Failed to create user account')
         
-        // Insert profile
+        // 3. Insert profile using the MAIN client (which is still authenticated as the manager, passing RLS)
         const profilePromise = supabase.from('users').insert({
           id: signUpData.user.id, name: formData.name, phone: formData.phone,
           role: formData.role, route_id: formData.route_id || null
