@@ -58,36 +58,38 @@ export default function ManageUsers() {
         const { error: e2 } = await supabase.from('users').update(updateData).eq('id', editUser.id)
         if (e2) throw e2
         setSuccessMsg('User updated successfully!')
+        setTimeout(() => { setModalOpen(false); loadData() }, 1000)
       } else {
         if (!formData.email || !formData.password) throw new Error('Email and password are required')
         if (formData.password.length < 6) throw new Error('Password must be at least 6 characters')
-        // Save current session info
-        const { data: currentSession } = await supabase.auth.getSession()
+        
+        // Use a timeout promise to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please try again.')), 10000))
+        
         // Create auth user via signUp
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email: formData.email, password: formData.password
-        })
+        const authPromise = supabase.auth.signUp({ email: formData.email, password: formData.password })
+        const { data: signUpData, error: signUpErr } = await Promise.race([authPromise, timeoutPromise])
+        
         if (signUpErr) throw signUpErr
         if (!signUpData?.user) throw new Error('Failed to create user account')
+        
         // Insert profile
-        const { error: profileErr } = await supabase.from('users').insert({
+        const profilePromise = supabase.from('users').insert({
           id: signUpData.user.id, name: formData.name, phone: formData.phone,
           role: formData.role, route_id: formData.route_id || null
         })
-        if (profileErr) { console.error('Profile insert error:', profileErr); throw profileErr }
-        // Restore manager session
-        if (currentSession?.session?.refresh_token) {
-          await supabase.auth.setSession({
-            access_token: currentSession.session.access_token,
-            refresh_token: currentSession.session.refresh_token
-          })
-        }
+        const { error: profileErr } = await Promise.race([profilePromise, timeoutPromise])
+        if (profileErr) throw profileErr
+        
         setSuccessMsg(`${formData.name} added successfully!`)
+        setTimeout(() => { setModalOpen(false); loadData() }, 1500)
       }
-      setTimeout(() => { setModalOpen(false); loadData() }, 1000)
     } catch (err) {
-      setError(err.message || 'Operation failed')
-    } finally { setSaving(false) }
+      console.error('Save error:', err)
+      setError(err.message || 'Operation failed. Please try again.')
+    } finally { 
+      setSaving(false) 
+    }
   }
 
   async function assignRoute(userId, routeId) {
