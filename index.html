@@ -13,6 +13,21 @@
     <title>Amrut SalesTrack</title>
   </head>
   <body class="bg-gray-50 font-sans antialiased">
+    <!-- PWA Kill Switch: Destroys old service workers that cause white screens -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister().then(function(boolean) {
+              if (boolean) {
+                console.log('Unregistered stale service worker');
+                window.location.reload(true);
+              }
+            });
+          }
+        });
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

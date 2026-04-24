@@ -212,6 +212,11 @@ export default function ManageUsers() {
       {/* Add/Edit User Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'Edit User' : 'Add New Salesman'} size="md">
         <form onSubmit={handleSave} className="space-y-4">
+          {!editUser && (
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium mb-2">
+              <strong>⚠️ Important:</strong> If you receive emails from Supabase instead of instant login, you must disable <strong>"Confirm email"</strong> in your Supabase Dashboard ➔ Authentication ➔ Providers ➔ Email.
+            </div>
+          )}
           {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">{error}</div>}
           {successMsg && <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-green-600 text-sm font-medium">{successMsg}</div>}
           <div>
