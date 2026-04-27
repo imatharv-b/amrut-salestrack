@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { DEMO_MODE, DEMO_USERS } from '../lib/demoData'
 
@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const initDone = useRef(false)
 
   // Fetch user profile with role
   async function fetchProfile(userId) {
@@ -46,9 +47,20 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // Get initial session — wrapped in try-catch with guaranteed setLoading(false)
+    // Safety timeout — never leave the app stuck on loading
+    const safetyTimer = setTimeout(() => {
+      if (loading) {
+        console.warn('[Auth] Safety timeout: forcing loading=false after 8s')
+        setLoading(false)
+      }
+    }, 8000)
+
+    // Get initial session
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
+        if (initDone.current) return
+        initDone.current = true
+
         setUser(session?.user ?? null)
         if (session?.user) {
           try {
@@ -61,6 +73,7 @@ export function AuthProvider({ children }) {
       })
       .catch((err) => {
         console.error('Failed to get auth session:', err)
+        initDone.current = true
         setUser(null)
         setProfile(null)
       })
@@ -69,9 +82,12 @@ export function AuthProvider({ children }) {
         setLoading(false)
       })
 
-    // Listen for auth changes
+    // Listen for auth changes (only for SUBSEQUENT changes, not the initial one)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        // Skip the initial event — getSession handles it
+        if (!initDone.current) return
+
         setUser(session?.user ?? null)
         if (session?.user) {
           try {
@@ -83,11 +99,13 @@ export function AuthProvider({ children }) {
         } else {
           setProfile(null)
         }
-        setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   // Sign in with email/password
@@ -162,7 +180,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   )
 }

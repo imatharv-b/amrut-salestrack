@@ -16,38 +16,18 @@
     <title>Amrut SalesTrack</title>
   </head>
   <body class="bg-gray-50 font-sans antialiased">
-    <!-- Cache & SW Cleanup: Unregister service workers and purge all cached assets -->
+    <!-- Silently clean up old service workers without reloading -->
     <script>
-      (function() {
-        // 1. Unregister all service workers
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            var hadSW = false;
-            registrations.forEach(function(registration) {
-              registration.unregister();
-              hadSW = true;
-              console.log('[CacheBust] Unregistered service worker:', registration.scope);
-            });
-            // 2. Purge all CacheStorage entries (workbox precache, runtime, etc.)
-            if ('caches' in window) {
-              caches.keys().then(function(cacheNames) {
-                cacheNames.forEach(function(cacheName) {
-                  caches.delete(cacheName);
-                  console.log('[CacheBust] Deleted cache:', cacheName);
-                });
-                // Only reload once if we actually cleaned something up
-                if (hadSW || cacheNames.length > 0) {
-                  // Use a flag in sessionStorage to avoid reload loops
-                  if (!sessionStorage.getItem('cache_busted')) {
-                    sessionStorage.setItem('cache_busted', '1');
-                    window.location.reload();
-                  }
-                }
-              });
-            }
-          });
-        }
-      })();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(r) {
+          r.forEach(function(reg) { reg.unregister(); });
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          names.forEach(function(n) { caches.delete(n); });
+        });
+      }
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
