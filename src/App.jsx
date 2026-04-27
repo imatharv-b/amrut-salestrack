@@ -13,7 +13,8 @@ import SalesmanHome from './pages/SalesmanHome'
 import LogVisit from './pages/LogVisit'
 import RecordCollection from './pages/RecordCollection'
 import MyVisits from './pages/MyVisits'
-import MapView from './pages/MapView' 
+import MapView from './pages/MapView'
+import AddStore from './pages/AddStore'
 
 // Manager Dashboard Pages
 import Dashboard from './pages/Dashboard'
@@ -133,6 +134,7 @@ export default function App() {
                 <Route path="/visit" element={<LogVisit />} />
                 <Route path="/collect" element={<RecordCollection />} />
                 <Route path="/my-visits" element={<MyVisits />} />
+                <Route path="/add-store" element={<AddStore />} />
                 <Route path="/map" element={<MapView />} />
               </>
             )}

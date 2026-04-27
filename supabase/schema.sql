@@ -125,8 +125,9 @@ CREATE POLICY "Managers can modify profiles" ON public.users FOR ALL TO authenti
 -- Salesman can see their own route
 CREATE POLICY "Salesman read assigned route" ON public.routes FOR SELECT TO authenticated USING (id = public.get_user_route());
 
--- Salesman can only see stores belonging to their own route
-CREATE POLICY "Salesman read their route stores" ON public.stores FOR SELECT TO authenticated USING (route_id = public.get_user_route());
+-- Salesman can see all stores (for search/visit) and insert new ones (but NOT update/delete — that's manager only)
+CREATE POLICY "Salesman read stores" ON public.stores FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Salesman insert stores" ON public.stores FOR INSERT TO authenticated WITH CHECK (public.get_user_role() = 'salesman');
 
 -- Salesman can insert/read visits for stores on their route
 CREATE POLICY "Salesman read own visits" ON public.visits FOR SELECT TO authenticated USING (salesman_id = auth.uid());

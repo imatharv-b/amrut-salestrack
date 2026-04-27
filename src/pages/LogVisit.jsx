@@ -6,10 +6,9 @@ import { queueOfflineVisit } from '../lib/syncVisits'
 
 export default function LogVisit() {
   const { profile } = useAuth()
-  const [routes, setRoutes] = useState([])
   const [stores, setStores] = useState([])
-  const [selectedRoute, setSelectedRoute] = useState('')
-  const [selectedStore, setSelectedStore] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedStore, setSelectedStore] = useState(null)
   const [remarks, setRemarks] = useState('')
   const [stockRemaining, setStockRemaining] = useState('')
   const [followUpDate, setFollowUpDate] = useState('')
@@ -18,64 +17,38 @@ export default function LogVisit() {
   const [success, setSuccess] = useState(false)
   const [offlineSaved, setOfflineSaved] = useState(false)
   const [gps, setGps] = useState(null)
-  const [gpsLoading, setGpsLoading] = useState(true)
 
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
-    loadRoutes()
-    captureGPS()
-  }, [])
-
-  useEffect(() => {
-    if (selectedRoute) {
-      loadStores(selectedRoute)
-    }
-  }, [selectedRoute])
-
-  function captureGPS() {
+    loadStores()
+    // GPS is optional — capture silently in background
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-          setGpsLoading(false)
-        },
-        (err) => {
-          console.warn('GPS error:', err)
-          setGpsLoading(false)
-        },
+        (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {}, // silently ignore GPS errors
         { enableHighAccuracy: true, timeout: 10000 }
       )
-    } else {
-      setGpsLoading(false)
     }
-  }
+  }, [])
 
-  async function loadRoutes() {
+  async function loadStores() {
     if (DEMO_MODE) {
-      setRoutes(DEMO_ROUTES)
-    } else {
-      const { data } = await supabase.from('routes').select('*').order('name')
-      setRoutes(data || [])
-    }
-  }
-
-  async function loadStores(routeId) {
-    if (DEMO_MODE) {
-      setStores(DEMO_STORES.filter(s => s.route_id === routeId))
+      setStores(DEMO_STORES)
     } else {
       const { data } = await supabase
         .from('stores')
-        .select('*')
-        .eq('route_id', routeId)
-        .eq('is_active', true)
+        .select('*, routes(name)')
         .order('name')
       setStores(data || [])
     }
-    setSelectedStore('')
   }
 
-  const selectedStoreObj = stores.find(s => s.id === selectedStore)
+  const filteredStores = stores.filter(s =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.village?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -84,15 +57,15 @@ export default function LogVisit() {
 
     try {
       const visitPayload = {
-        store_id: selectedStore,
+        store_id: selectedStore.id,
         salesman_id: profile?.id || 'demo-salesman-1',
         visit_date: today,
         remarks,
         stock_remaining: stockRemaining || null,
         follow_up_date: followUpDate || null,
         follow_up_note: followUpNote || null,
-        lat: gps?.lat,
-        lng: gps?.lng,
+        lat: gps?.lat || null,
+        lng: gps?.lng || null,
       }
 
       if (!navigator.onLine) {
@@ -116,7 +89,8 @@ export default function LogVisit() {
       setStockRemaining('')
       setFollowUpDate('')
       setFollowUpNote('')
-      setSelectedStore('')
+      setSelectedStore(null)
+      setSearchTerm('')
       
       setTimeout(() => {
         setSuccess(false)
@@ -132,35 +106,12 @@ export default function LogVisit() {
   return (
     <div className="page-container">
       {/* Page header */}
-      <div className="mb-6 animate-fade-in-up">
+      <div className="mb-5 animate-fade-in-up">
         <h1 className="text-xl font-bold text-gray-800">Log Visit / विजिट दर्ज करें</h1>
         <p className="text-sm text-gray-500 mt-1">
           {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
+          {gps && <span className="text-green-500 ml-2">📍 GPS Active</span>}
         </p>
-      </div>
-
-      {/* GPS Status */}
-      <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 text-sm animate-fade-in-up ${
-        gpsLoading ? 'bg-gray-100 text-gray-500' : 
-        gps ? 'bg-green-50 text-green-600 border border-green-200' : 
-        'bg-amber-50 text-amber-600 border border-amber-200'
-      }`}>
-        {gpsLoading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-            Getting location...
-          </>
-        ) : gps ? (
-          <>
-            <span>📍</span>
-            GPS captured ({gps.lat.toFixed(4)}, {gps.lng.toFixed(4)})
-          </>
-        ) : (
-          <>
-            <span>⚠️</span>
-            GPS not available. Visit will be saved without location.
-          </>
-        )}
       </div>
 
       {/* Success message */}
@@ -181,84 +132,62 @@ export default function LogVisit() {
         </div>
       )}
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-5 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        {/* Route selection */}
-        <div>
-          <label className="input-label">Select Route / रूट चुनें</label>
-          <select
-            value={selectedRoute}
-            onChange={(e) => setSelectedRoute(e.target.value)}
-            className="input-field"
-            required
-          >
-            <option value="">-- Choose Route --</option>
-            {routes.map(route => (
-              <option key={route.id} value={route.id}>{route.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Store selection */}
-        {selectedRoute && (
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Store Search & Selection */}
+        {!selectedStore ? (
           <div className="animate-fade-in-up">
-            <label className="input-label">Select Store / दुकान चुनें (कृषी केंद्र)</label>
-            {stores.length === 0 ? (
-              <p className="text-sm text-gray-400 py-3">No stores on this route</p>
-            ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {stores.map(store => (
-                  <label 
-                    key={store.id}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-150
-                      ${selectedStore === store.id 
-                        ? 'border-brand-500 bg-brand-50 shadow-sm' 
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                  >
-                    <input
-                      type="radio"
-                      name="store"
-                      value={store.id}
-                      checked={selectedStore === store.id}
-                      onChange={(e) => setSelectedStore(e.target.value)}
-                      className="sr-only"
-                    />
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0
-                      ${selectedStore === store.id ? 'border-brand-600 bg-brand-600' : 'border-gray-300'}`}>
-                      {selectedStore === store.id && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-800">{store.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {store.village}
-                        {store.contact_person && ` • ${store.contact_person}`}
-                        {store.phone && ` • 📞 ${store.phone}`}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Selected Store Details Card */}
-        {selectedStoreObj && (
-          <div className="bg-brand-50 rounded-xl p-4 border border-brand-200 animate-fade-in-up">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">🏪</span>
-              <h3 className="font-bold text-brand-800">{selectedStoreObj.name}</h3>
+            <label className="input-label">Select Krishi Kendra / कृषी केंद्र चुनें</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="🔍 Search by name, village, owner..."
+              className="input-field mb-3"
+            />
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {filteredStores.map(store => (
+                <button
+                  key={store.id}
+                  type="button"
+                  onClick={() => { setSelectedStore(store); setSearchTerm('') }}
+                  className="w-full text-left p-3.5 bg-white rounded-xl border border-gray-200 
+                    hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150"
+                >
+                  <p className="font-semibold text-sm text-gray-800">🏪 {store.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {store.village && `📍 ${store.village}`}
+                    {store.contact_person && ` • 👤 ${store.contact_person}`}
+                    {!DEMO_MODE && store.routes?.name && ` • 🛣️ ${store.routes.name}`}
+                  </p>
+                </button>
+              ))}
+              {filteredStores.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">No stores found / कोई कृषी केंद्र नहीं मिला</p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-brand-600">
-              <div>📍 {selectedStoreObj.village}</div>
-              {selectedStoreObj.contact_person && <div>👤 {selectedStoreObj.contact_person}</div>}
-              {selectedStoreObj.phone && <div>📞 {selectedStoreObj.phone}</div>}
-              {selectedStoreObj.dealer_category && <div>⭐ Category: {selectedStoreObj.dealer_category}</div>}
+          </div>
+        ) : (
+          /* Selected Store Card */
+          <div className="animate-fade-in-up">
+            <label className="input-label">Selected Krishi Kendra</label>
+            <div className="p-4 bg-brand-50 rounded-xl border-2 border-brand-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-bold text-brand-800">🏪 {selectedStore.name}</p>
+                  <p className="text-xs text-brand-600 mt-0.5">
+                    {selectedStore.village && `📍 ${selectedStore.village}`}
+                    {selectedStore.contact_person && ` • 👤 ${selectedStore.contact_person}`}
+                    {selectedStore.phone && ` • 📞 ${selectedStore.phone}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStore(null)}
+                  className="text-xs text-brand-600 font-medium underline"
+                >
+                  Change
+                </button>
+              </div>
             </div>
           </div>
         )}
