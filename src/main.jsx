@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
+import './lib/versionCheck.js' // Auto-refresh when a new deployment is detected
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
