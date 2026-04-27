@@ -6,7 +6,7 @@ import { DEMO_MODE, DEMO_VISITS, DEMO_COLLECTIONS, DEMO_STORES, DEMO_ROUTES, get
 import { supabase } from '../lib/supabase'
 
 export default function SalesmanHome() {
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const [todayVisits, setTodayVisits] = useState([])
   const [todayCollections, setTodayCollections] = useState([])
   const [loading, setLoading] = useState(true)
@@ -57,15 +57,26 @@ export default function SalesmanHome() {
 
   return (
     <div className="page-container">
-      {/* Greeting */}
-      <div className="mb-6 animate-fade-in-up">
-        <p className="text-sm text-gray-500 font-medium">{greeting}</p>
-        <h1 className="text-2xl font-bold text-gray-800">
-          {profile?.full_name?.split(' ')[0] || 'Salesman'}
-        </h1>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+      {/* Greeting & Logout */}
+      <div className="mb-6 animate-fade-in-up flex items-start justify-between">
+        <div>
+          <p className="text-sm text-gray-500 font-medium">{greeting}</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {profile?.full_name?.split(' ')[0] || profile?.name?.split(' ')[0] || 'Salesman'}
+          </h1>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all shadow-sm active:scale-95 text-sm font-bold mt-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Logout
+        </button>
       </div>
 
       {/* Stats */}
