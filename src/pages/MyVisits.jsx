@@ -98,7 +98,7 @@ export default function MyVisits() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-semibold text-gray-800">
-                    {DEMO_MODE ? getStoreName(visit.store_id) : visit.stores?.name}
+                    🏪 {DEMO_MODE ? getStoreName(visit.store_id) : visit.stores?.name}
                   </p>
                   <p className="text-xs text-gray-500">
                     {DEMO_MODE ? '' : visit.stores?.village + ' • '}
@@ -108,7 +108,20 @@ export default function MyVisits() {
                 <span className="badge-green">✓</span>
               </div>
               {visit.remarks && (
-                <p className="text-sm text-gray-600 bg-gray-50 p-2.5 rounded-lg mt-1">{visit.remarks}</p>
+                <p className="text-sm text-gray-600 bg-gray-50 p-2.5 rounded-lg mt-1">💬 {visit.remarks}</p>
+              )}
+              {visit.stock_remaining && (
+                <p className="text-sm text-blue-600 bg-blue-50 p-2.5 rounded-lg mt-1.5">📦 Stock: {visit.stock_remaining}</p>
+              )}
+              {visit.follow_up_date && (
+                <div className="mt-1.5 p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+                  <p className="text-sm text-amber-700 font-medium">
+                    📅 Follow-up: {new Date(visit.follow_up_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  {visit.follow_up_note && (
+                    <p className="text-xs text-amber-600 mt-0.5">{visit.follow_up_note}</p>
+                  )}
+                </div>
               )}
             </div>
           ))}

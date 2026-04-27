@@ -40,7 +40,7 @@ export default function RecordCollection() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!selectedStore || !amount) return
+    if (!selectedStore || amount === '') return
     setLoading(true)
 
     try {
@@ -162,7 +162,7 @@ export default function RecordCollection() {
                 placeholder="0"
                 className="input-field text-2xl font-bold pl-10 text-center h-16"
                 required
-                min="1"
+                min="0"
                 inputMode="numeric"
               />
             </div>
@@ -234,7 +234,7 @@ export default function RecordCollection() {
         )}
 
         {/* Submit */}
-        {selectedStore && amount && (
+        {selectedStore && amount !== '' && (
           <div className="animate-fade-in-up pt-2">
             <button
               type="submit"

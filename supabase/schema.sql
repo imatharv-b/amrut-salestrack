@@ -41,6 +41,9 @@ CREATE TABLE public.visits (
     salesman_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
     visited_date date NOT NULL,
     remarks text,
+    stock_remaining text,       -- Stock left at store (e.g., "DAP 5 bags, Urea 10 bags")
+    follow_up_date date,        -- When dealer says they will pay
+    follow_up_note text,        -- Context for the follow-up (e.g., "Will pay after selling stock")
     photo_url text, -- Future use for bucket storage linking
     created_at timestamptz DEFAULT now()
 );

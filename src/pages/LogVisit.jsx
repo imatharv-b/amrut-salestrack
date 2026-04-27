@@ -11,6 +11,9 @@ export default function LogVisit() {
   const [selectedRoute, setSelectedRoute] = useState('')
   const [selectedStore, setSelectedStore] = useState('')
   const [remarks, setRemarks] = useState('')
+  const [stockRemaining, setStockRemaining] = useState('')
+  const [followUpDate, setFollowUpDate] = useState('')
+  const [followUpNote, setFollowUpNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [offlineSaved, setOfflineSaved] = useState(false)
@@ -72,6 +75,8 @@ export default function LogVisit() {
     setSelectedStore('')
   }
 
+  const selectedStoreObj = stores.find(s => s.id === selectedStore)
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!selectedStore) return
@@ -83,16 +88,17 @@ export default function LogVisit() {
         salesman_id: profile?.id || 'demo-salesman-1',
         visit_date: today,
         remarks,
+        stock_remaining: stockRemaining || null,
+        follow_up_date: followUpDate || null,
+        follow_up_note: followUpNote || null,
         lat: gps?.lat,
         lng: gps?.lng,
       }
 
       if (!navigator.onLine) {
-        // You are offline, push to LocalStorage Queue
         queueOfflineVisit(visitPayload)
         setOfflineSaved(true)
       } else {
-        // Online, process directly
         if (DEMO_MODE) {
           DEMO_VISITS.push({
             id: `visit-${Date.now()}`,
@@ -107,6 +113,9 @@ export default function LogVisit() {
       }
 
       setRemarks('')
+      setStockRemaining('')
+      setFollowUpDate('')
+      setFollowUpNote('')
       setSelectedStore('')
       
       setTimeout(() => {
@@ -119,8 +128,6 @@ export default function LogVisit() {
       setLoading(false)
     }
   }
-
-  const selectedStoreName = stores.find(s => s.id === selectedStore)?.name
 
   return (
     <div className="page-container">
@@ -195,7 +202,7 @@ export default function LogVisit() {
         {/* Store selection */}
         {selectedRoute && (
           <div className="animate-fade-in-up">
-            <label className="input-label">Select Store / दुकान चुनें</label>
+            <label className="input-label">Select Store / दुकान चुनें (कृषी केंद्र)</label>
             {stores.length === 0 ? (
               <p className="text-sm text-gray-400 py-3">No stores on this route</p>
             ) : (
@@ -225,14 +232,71 @@ export default function LogVisit() {
                         </svg>
                       )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-semibold text-gray-800">{store.name}</p>
-                      <p className="text-xs text-gray-500">{store.village}</p>
+                      <p className="text-xs text-gray-500">
+                        {store.village}
+                        {store.contact_person && ` • ${store.contact_person}`}
+                        {store.phone && ` • 📞 ${store.phone}`}
+                      </p>
                     </div>
                   </label>
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Selected Store Details Card */}
+        {selectedStoreObj && (
+          <div className="bg-brand-50 rounded-xl p-4 border border-brand-200 animate-fade-in-up">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🏪</span>
+              <h3 className="font-bold text-brand-800">{selectedStoreObj.name}</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-brand-600">
+              <div>📍 {selectedStoreObj.village}</div>
+              {selectedStoreObj.contact_person && <div>👤 {selectedStoreObj.contact_person}</div>}
+              {selectedStoreObj.phone && <div>📞 {selectedStoreObj.phone}</div>}
+              {selectedStoreObj.dealer_category && <div>⭐ Category: {selectedStoreObj.dealer_category}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Stock Remaining */}
+        {selectedStore && (
+          <div className="animate-fade-in-up">
+            <label className="input-label">Stock Remaining / शिल्लक माल</label>
+            <textarea
+              value={stockRemaining}
+              onChange={(e) => setStockRemaining(e.target.value)}
+              placeholder="e.g., DAP 5 bags, Urea 10 bags, Amrut Gold 3 bottles..."
+              className="input-field min-h-[80px] resize-none"
+              rows={2}
+            />
+            <p className="text-[10px] text-gray-400 mt-1">दुकान में बाकी रहिलेला माल लिहा</p>
+          </div>
+        )}
+
+        {/* Follow-up: When will they pay? */}
+        {selectedStore && (
+          <div className="animate-fade-in-up">
+            <label className="input-label">Payment Follow-up / पैसे कब देंगे?</label>
+            <input
+              type="date"
+              value={followUpDate}
+              onChange={(e) => setFollowUpDate(e.target.value)}
+              className="input-field mb-2"
+              min={today}
+            />
+            <input
+              type="text"
+              value={followUpNote}
+              onChange={(e) => setFollowUpNote(e.target.value)}
+              placeholder="e.g., Will pay after selling DAP stock..."
+              className="input-field"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">दुकानदार ने कब पैसे देने बोला — तारीख और कारण लिखें</p>
           </div>
         )}
 
@@ -244,8 +308,8 @@ export default function LogVisit() {
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               placeholder="Enter visit notes..."
-              className="input-field min-h-[100px] resize-none"
-              rows={3}
+              className="input-field min-h-[80px] resize-none"
+              rows={2}
             />
           </div>
         )}

@@ -30,12 +30,11 @@ const salesmanLinks = [
     ),
   },
   {
-    to: '/map',
-    label: 'Map',
+    to: '/my-visits',
+    label: 'History',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -43,6 +42,7 @@ const salesmanLinks = [
 
 export default function BottomNav() {
   const location = useLocation()
+  const { signOut } = useAuth()
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-lg border-t border-gray-200 md:hidden"
@@ -55,7 +55,7 @@ export default function BottomNav() {
             <NavLink
               key={link.to}
               to={link.to}
-              className={`flex flex-col items-center justify-center w-16 h-full gap-0.5 
+              className={`flex flex-col items-center justify-center w-14 h-full gap-0.5 
                 transition-all duration-200
                 ${isActive 
                   ? 'text-brand-600' 
@@ -74,6 +74,16 @@ export default function BottomNav() {
             </NavLink>
           )
         })}
+        {/* Sign Out Button */}
+        <button
+          onClick={signOut}
+          className="flex flex-col items-center justify-center w-14 h-full gap-0.5 text-gray-400 active:text-red-500 transition-all duration-200"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span className="text-[10px] font-semibold text-gray-400">Logout</span>
+        </button>
       </div>
     </nav>
   )
