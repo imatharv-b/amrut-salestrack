@@ -37,7 +37,7 @@ export async function syncOfflineVisits() {
       const { error } = await supabase.from('visits').insert({
         store_id: visit.store_id,
         salesman_id: visit.salesman_id,
-        visit_date: visit.visit_date,
+        visited_date: visit.visited_date,
         remarks: visit.remarks,
         stock_remaining: visit.stock_remaining,
         follow_up_date: visit.follow_up_date,

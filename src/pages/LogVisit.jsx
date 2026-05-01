@@ -50,7 +50,7 @@ export default function LogVisit() {
     // 1. Create payload
     const visitPayload = {
       store_id: selectedStore.id, salesman_id: profile?.id,
-      visit_date: today, remarks,
+      visited_date: today, remarks,
       stock_remaining: stockRemaining || null,
       follow_up_date: followUpDate || null, follow_up_note: followUpNote || null,
     }
