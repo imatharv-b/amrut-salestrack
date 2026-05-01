@@ -31,17 +31,7 @@ export default function LogVisit() {
 
   async function loadStores() {
     try {
-      if (profile?.role === 'salesman' && !profile?.route_id) {
-        setStores([])
-        return
-      }
-      
-      let query = supabase.from('stores').select('*, routes(name)').order('name')
-      if (profile?.role === 'salesman') {
-        query = query.eq('route_id', profile.route_id)
-      }
-      
-      const { data, error } = await query
+      const { data, error } = await supabase.from('stores').select('*, routes(name)').order('name')
       if (error) throw error
       setStores(data || [])
     } catch (err) { console.error('Failed to load stores:', err) }
@@ -111,25 +101,17 @@ export default function LogVisit() {
             <label className="input-label">Select Krishi Kendra / कृषी केंद्र चुनें</label>
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search by name, village, owner..." className="input-field mb-3" />
             <div className="space-y-2 max-h-72 overflow-y-auto">
-              {profile?.role === 'salesman' && !profile?.route_id ? (
-                <div className="p-4 bg-red-50 text-red-600 rounded-xl border border-red-200 text-sm font-medium text-center">
-                  ⚠️ You must be assigned a route by your manager before you can log visits.
-                </div>
-              ) : (
-                <>
-                  {filteredStores.map(store => (
-                    <button key={store.id} type="button" onClick={() => { setSelectedStore(store); setSearchTerm('') }} className="w-full text-left p-3.5 bg-white rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150">
-                      <p className="font-semibold text-sm text-gray-800">🏪 {store.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {store.village && `📍 ${store.village}`}
-                        {store.contact_person && ` • 👤 ${store.contact_person}`}
-                        {store.routes?.name && ` • 🛣️ ${store.routes.name}`}
-                      </p>
-                    </button>
-                  ))}
-                  {filteredStores.length === 0 && (<p className="text-sm text-gray-400 text-center py-4">No stores found / कोई कृषी केंद्र नहीं मिला</p>)}
-                </>
-              )}
+              {filteredStores.map(store => (
+                <button key={store.id} type="button" onClick={() => { setSelectedStore(store); setSearchTerm('') }} className="w-full text-left p-3.5 bg-white rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150">
+                  <p className="font-semibold text-sm text-gray-800">🏪 {store.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {store.village && `📍 ${store.village}`}
+                    {store.contact_person && ` • 👤 ${store.contact_person}`}
+                    {store.routes?.name && ` • 🛣️ ${store.routes.name}`}
+                  </p>
+                </button>
+              ))}
+              {filteredStores.length === 0 && (<p className="text-sm text-gray-400 text-center py-4">No stores found / कोई कृषी केंद्र नहीं मिला</p>)}
             </div>
           </div>
         ) : (
