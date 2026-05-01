@@ -50,10 +50,7 @@ export default function Login() {
       {/* Top section with branding */}
       <div className="flex-1 flex items-end justify-center pb-8 pt-16">
         <div className="text-center animate-fade-in-up">
-          <div className="w-20 h-20 rounded-2xl gradient-brand flex items-center justify-center text-white 
-            font-bold text-3xl shadow-xl shadow-brand-600/30 mx-auto mb-4">
-            A
-          </div>
+          <img src="/logo.png" alt="Amrut Biochem" className="w-20 h-20 rounded-2xl shadow-xl shadow-brand-600/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-800">Amrut SalesTrack</h1>
           <p className="text-sm text-gray-500 mt-1">Field Sales Tracking Platform</p>
           <p className="text-xs text-gray-400 mt-0.5">Amrut Biochem • Gondia</p>

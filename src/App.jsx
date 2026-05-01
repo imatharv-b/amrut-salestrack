@@ -15,6 +15,7 @@ import RecordCollection from './pages/RecordCollection'
 import MyVisits from './pages/MyVisits'
 import MapView from './pages/MapView'
 import AddStore from './pages/AddStore'
+import MarkAttendance from './pages/MarkAttendance'
 
 // Manager Dashboard Pages
 import Dashboard from './pages/Dashboard'
@@ -23,6 +24,8 @@ import SalesmanPerformance from './pages/SalesmanPerformance'
 import ManageRoutes from './pages/ManageRoutes'
 import ManageStores from './pages/ManageStores'
 import ManageUsers from './pages/ManageUsers'
+import ManageAttendance from './pages/ManageAttendance'
+import VisitReport from './pages/VisitReport'
 
 import { syncOfflineVisits } from './lib/syncVisits'
 import { useEffect } from 'react'
@@ -119,9 +122,11 @@ export default function App() {
             {/* Manager Specific Routes */}
             {isManager && (
               <>
+                <Route path="/attendance" element={<ManageAttendance />} />
                 <Route path="/map" element={<MapView />} />
                 <Route path="/ledger" element={<CollectionsLedger />} />
                 <Route path="/performance" element={<SalesmanPerformance />} />
+                <Route path="/visit-report" element={<VisitReport />} />
                 <Route path="/routes" element={<ManageRoutes />} />
                 <Route path="/stores" element={<ManageStores />} />
                 <Route path="/users" element={<ManageUsers />} />
@@ -131,6 +136,7 @@ export default function App() {
             {/* Salesman Specific Routes */}
             {isSalesman && (
               <>
+                <Route path="/attendance" element={<MarkAttendance />} />
                 <Route path="/visit" element={<LogVisit />} />
                 <Route path="/collect" element={<RecordCollection />} />
                 <Route path="/my-visits" element={<MyVisits />} />

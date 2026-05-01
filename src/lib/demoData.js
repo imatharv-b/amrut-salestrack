@@ -22,16 +22,10 @@ export const DEMO_USERS = {
 }
 
 export const DEMO_STORES = [
-  { id: 's1', name: 'Shri Ganesh Krishi Kendra', route_id: 'r_gondia', village: 'Goregaon', gps_lat: 21.3122, gps_lng: 80.0888, contact_person: 'Ramesh B', phone: '9111', dealer_category: 'A', credit_limit: 500000 },
-  { id: 's2', name: 'Mauli Krishi Seva', route_id: 'r_gondia', village: 'Gondia City', gps_lat: 21.4552, gps_lng: 80.1982, contact_person: 'Vikas p', phone: '9112', dealer_category: 'A', credit_limit: 200000 },
-  { id: 's3', name: 'Sai Agro Center', route_id: 'r_gondia', village: 'Gondia Rural', gps_lat: 21.4650, gps_lng: 80.2000, contact_person: 'Kishor', phone: '9113', dealer_category: 'B', credit_limit: 150000 },
-  { id: 's4', name: 'Balaji Agro Services', route_id: 'r_tirora', village: 'Tirora', gps_lat: 21.4011, gps_lng: 79.9877, contact_person: 'Suresh Thakre', phone: '9114', dealer_category: 'A', credit_limit: 300000 },
-  { id: 's5', name: 'Krishi Mitra Center', route_id: 'r_tirora', village: 'Sukdi', gps_lat: 21.4111, gps_lng: 79.9911, contact_person: 'Manoj D', phone: '9115', dealer_category: 'B', credit_limit: 100000 },
-  { id: 's6', name: 'Jai Kisan Fertilizer', route_id: 'r_tirora', village: 'Arjuni', gps_lat: 21.4300, gps_lng: 79.9500, contact_person: 'Gopal N', phone: '9116', dealer_category: 'C', credit_limit: 50000 },
-  { id: 's7', name: 'Amrut Dealers Amgaon', route_id: 'r_amgaon', village: 'Amgaon', gps_lat: 21.3833, gps_lng: 80.3588, contact_person: 'Nitin Deshpande', phone: '9117', dealer_category: 'A', credit_limit: 400000 },
-  { id: 's8', name: 'Kisaan Sewa Kendra', route_id: 'r_amgaon', village: 'Salekasa', gps_lat: 21.5200, gps_lng: 80.0500, contact_person: 'Prakash M', phone: '9118', dealer_category: 'B', credit_limit: 150000 },
-  { id: 's9', name: 'Shivaji Agro Sales', route_id: 'r_amgaon', village: 'Deori', gps_lat: 21.0500, gps_lng: 80.4600, contact_person: 'Ajay Singh', phone: '9119', dealer_category: 'A', credit_limit: 500000 },
-  { id: 's10', name: 'Mahalaxmi Krishi', route_id: 'r_amgaon', village: 'Sadak Arjuni', gps_lat: 21.1300, gps_lng: 80.0600, contact_person: 'Deepesh R', phone: '9120', dealer_category: 'C', credit_limit: 40000 }
+  { id: 's1', name: 'Kesar Shakti', route_id: 'r_gondia', village: 'Goregaon', gps_lat: 21.3122, gps_lng: 80.0888, contact_person: 'Ramesh B', phone: '9111', dealer_category: 'A', credit_limit: 500000, is_active: true },
+  { id: 's2', name: 'Black Gold', route_id: 'r_gondia', village: 'Gondia City', gps_lat: 21.4552, gps_lng: 80.1982, contact_person: 'Vikas P', phone: '9112', dealer_category: 'A', credit_limit: 200000, is_active: true },
+  { id: 's3', name: 'F Guard', route_id: 'r_tirora', village: 'Tirora', gps_lat: 21.4011, gps_lng: 79.9877, contact_person: 'Suresh Thakre', phone: '9113', dealer_category: 'A', credit_limit: 300000, is_active: true },
+  { id: 's4', name: 'Kala Moti', route_id: 'r_tirora', village: 'Arjuni', gps_lat: 21.4300, gps_lng: 79.9500, contact_person: 'Gopal N', phone: '9114', dealer_category: 'B', credit_limit: 150000, is_active: true }
 ]
 
 const todayNum = Date.now()
@@ -46,23 +40,23 @@ export const DEMO_VISITS = [
   { id: 'v2', store_id: 's2', salesman_id: 'u_salesman1', visited_date: _2days, remarks: 'Payment follow up.', photo_url: null, created_at: new Date(todayNum - 2*86400000).toISOString() },
   { id: 'v3', store_id: 's3', salesman_id: 'u_salesman1', visited_date: _45days, remarks: 'Shop was closed.', photo_url: null, created_at: new Date(todayNum - 45*86400000).toISOString() },
   { id: 'v4', store_id: 's4', salesman_id: 'u_salesman2', visited_date: today, remarks: 'Stock is full. Doing well.', photo_url: null, created_at: new Date(todayNum).toISOString() },
-  { id: 'v5', store_id: 's5', salesman_id: 'u_salesman2', visited_date: _5days, remarks: 'Discussed new discounts.', photo_url: null, created_at: new Date(todayNum - 5*86400000).toISOString() },
-  { id: 'v6', store_id: 's6', salesman_id: 'u_salesman2', visited_date: _15days, remarks: 'Competitor product is moving fast.', photo_url: null, created_at: new Date(todayNum - 15*86400000).toISOString() },
-  { id: 'v7', store_id: 's7', salesman_id: 'u_salesman1', visited_date: _45days, remarks: 'Need to visit soon.', photo_url: null, created_at: new Date(todayNum - 45*86400000).toISOString() }
+  { id: 'v5', store_id: 's1', salesman_id: 'u_salesman2', visited_date: _5days, remarks: 'Discussed new discounts.', photo_url: null, created_at: new Date(todayNum - 5*86400000).toISOString() },
+  { id: 'v6', store_id: 's3', salesman_id: 'u_salesman2', visited_date: _15days, remarks: 'Competitor product is moving fast.', photo_url: null, created_at: new Date(todayNum - 15*86400000).toISOString() },
+  { id: 'v7', store_id: 's4', salesman_id: 'u_salesman1', visited_date: _45days, remarks: 'Need to visit soon.', photo_url: null, created_at: new Date(todayNum - 45*86400000).toISOString() }
 ]
 
 export const DEMO_INVOICES = [
-  { id: 'i1', store_id: 's1', invoice_number: 'INV-001', invoice_date: _15days, total_amount: 55000, description: 'Bio NPK Supply', created_at: '2026-04-01' },
-  { id: 'i2', store_id: 's2', invoice_number: 'INV-002', invoice_date: _45days, total_amount: 120000, description: 'Bulk order', created_at: '2026-03-01' },
-  { id: 'i3', store_id: 's4', invoice_number: 'INV-003', invoice_date: _5days, total_amount: 30000, description: 'Trial supply', created_at: '2026-04-10' },
-  { id: 'i4', store_id: 's7', invoice_number: 'INV-004', invoice_date: _45days, total_amount: 450000, description: 'Season opening stock', created_at: '2026-02-15' },
+  { id: 'i1', store_id: 's1', invoice_number: 'INV-001', invoice_date: _15days, total_amount: 55000, description: 'Kesar Shakti Supply', created_at: '2026-04-01' },
+  { id: 'i2', store_id: 's2', invoice_number: 'INV-002', invoice_date: _45days, total_amount: 120000, description: 'Black Gold Bulk order', created_at: '2026-03-01' },
+  { id: 'i3', store_id: 's3', invoice_number: 'INV-003', invoice_date: _5days, total_amount: 30000, description: 'F Guard Trial supply', created_at: '2026-04-10' },
+  { id: 'i4', store_id: 's4', invoice_number: 'INV-004', invoice_date: _45days, total_amount: 450000, description: 'Kala Moti Season opening stock', created_at: '2026-02-15' },
 ]
 
 export const DEMO_COLLECTIONS = [
   { id: 'c1', store_id: 's1', salesman_id: 'u_salesman1', amount: 15000, payment_mode: 'cash', payment_date: _5days, remarks: 'Partial payment', invoice_id: 'i1', created_at: '2026-04-10' },
   { id: 'c2', store_id: 's2', salesman_id: 'u_salesman1', amount: 50000, payment_mode: 'upi', payment_date: _15days, remarks: 'Bank transfer', invoice_id: 'i2', created_at: '2026-04-01' },
   { id: 'c3', store_id: 's2', salesman_id: 'u_salesman1', amount: 30000, payment_mode: 'cash', payment_date: today, remarks: 'Cash handed over', invoice_id: 'i2', created_at: today },
-  { id: 'c4', store_id: 's7', salesman_id: 'u_salesman1', amount: 100000, payment_mode: 'upi', payment_date: _15days, remarks: 'First tranche', invoice_id: 'i4', created_at: '2026-04-01' }
+  { id: 'c4', store_id: 's4', salesman_id: 'u_salesman1', amount: 100000, payment_mode: 'upi', payment_date: _15days, remarks: 'First tranche', invoice_id: 'i4', created_at: '2026-04-01' }
 ]
 
 export function getStoreName(id) { return DEMO_STORES.find(s => s.id === id)?.name || 'Unknown' }
@@ -80,3 +74,30 @@ export function getStoreOutstanding(storeId) {
   const collected = DEMO_COLLECTIONS.filter(c => c.store_id === storeId).reduce((sum, c) => sum + Number(c.amount), 0)
   return invoiced - collected
 }
+
+// ========== ATTENDANCE DATA ==========
+export const DEMO_SALESMEN = [
+  DEMO_USERS.salesman.profile,
+  DEMO_USERS.salesman2.profile,
+]
+
+const _1day = new Date(todayNum - 1 * 86400000).toISOString().split('T')[0]
+const _3days = new Date(todayNum - 3 * 86400000).toISOString().split('T')[0]
+const _4days = new Date(todayNum - 4 * 86400000).toISOString().split('T')[0]
+const _6days = new Date(todayNum - 6 * 86400000).toISOString().split('T')[0]
+
+export const DEMO_ATTENDANCE = [
+  // Today — salesman1 marked, pending approval
+  { id: 'att1', salesman_id: 'u_salesman1', date: today, check_in_time: '08:35', status: 'pending', lat: 21.4552, lng: 80.1982, remarks: '', approved_by: null, created_at: new Date().toISOString() },
+  // Yesterday
+  { id: 'att2', salesman_id: 'u_salesman1', date: _1day, check_in_time: '09:10', status: 'approved', lat: 21.4552, lng: 80.1982, remarks: '', approved_by: 'u_manager', created_at: new Date(todayNum - 86400000).toISOString() },
+  { id: 'att3', salesman_id: 'u_salesman2', date: _1day, check_in_time: '08:50', status: 'approved', lat: 21.4011, lng: 79.9877, remarks: '', approved_by: 'u_manager', created_at: new Date(todayNum - 86400000).toISOString() },
+  // 2 days ago
+  { id: 'att4', salesman_id: 'u_salesman1', date: _2days, check_in_time: '09:00', status: 'approved', lat: 21.4552, lng: 80.1982, remarks: '', approved_by: 'u_manager', created_at: new Date(todayNum - 2*86400000).toISOString() },
+  { id: 'att5', salesman_id: 'u_salesman2', date: _2days, check_in_time: '10:15', status: 'rejected', lat: 21.4011, lng: 79.9877, remarks: 'Late check-in', approved_by: 'u_manager', created_at: new Date(todayNum - 2*86400000).toISOString() },
+  // 3 days ago
+  { id: 'att6', salesman_id: 'u_salesman1', date: _3days, check_in_time: '08:45', status: 'approved', lat: 21.4552, lng: 80.1982, remarks: '', approved_by: 'u_manager', created_at: new Date(todayNum - 3*86400000).toISOString() },
+  // 5 days ago
+  { id: 'att7', salesman_id: 'u_salesman1', date: _5days, check_in_time: '09:30', status: 'approved', lat: 21.4552, lng: 80.1982, remarks: '', approved_by: 'u_manager', created_at: new Date(todayNum - 5*86400000).toISOString() },
+  { id: 'att8', salesman_id: 'u_salesman2', date: _5days, check_in_time: '08:40', status: 'approved', lat: 21.4011, lng: 79.9877, remarks: '', approved_by: 'u_manager', created_at: new Date(todayNum - 5*86400000).toISOString() },
+]

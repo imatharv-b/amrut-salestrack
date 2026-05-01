@@ -3,9 +3,11 @@ import { useAuth } from '../contexts/AuthContext'
 
 const managerLinks = [
   { to: '/', label: 'Overview Dashboard', icon: '📊' },
+  { to: '/attendance', label: 'Attendance', icon: '📋' },
   { to: '/map', label: 'Live Map', icon: '🗺️' },
   { to: '/ledger', label: 'Collections Ledger', icon: '🧾' },
   { to: '/performance', label: 'Salesman Performance', icon: '👥' },
+  { to: '/visit-report', label: 'Visit Report', icon: '📅' },
   { to: '/routes', label: 'Manage Routes', icon: '🛣️' },
   { to: '/stores', label: 'Manage Stores', icon: '🏪' },
   { to: '/users', label: 'Manage Users', icon: '🛡️' },
@@ -20,9 +22,7 @@ export default function Sidebar() {
       {/* Brand Header */}
       <div className="p-5 border-b border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-brand flex items-center justify-center text-white font-bold text-lg shadow-lg">
-            A
-          </div>
+          <img src="/logo.png" alt="Amrut" className="w-10 h-10 rounded-xl shadow-lg" />
           <div>
             <h1 className="font-bold text-base text-white">Amrut SalesTrack</h1>
             <p className="text-xs text-gray-400">Field Sales Manager</p>
@@ -55,7 +55,7 @@ export default function Sidebar() {
       {/* User section */}
       <div className="p-4 border-t border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md">
             {profile?.name?.charAt(0) || 'U'}
           </div>
           <div className="flex-1 min-w-0">

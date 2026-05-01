@@ -23,19 +23,25 @@ export default function RecordCollection() {
     if (DEMO_MODE) {
       setStores(DEMO_STORES)
     } else {
-      const { data } = await supabase
-        .from('stores')
-        .select('*, routes(name)')
-        .eq('is_active', true)
-        .order('name')
-      setStores(data || [])
+      try {
+        const { data, error } = await supabase
+          .from('stores')
+          .select('*, routes(name)')
+          .order('name')
+        if (error) throw error
+        // Fallback to demo stores if database is empty
+        setStores(data && data.length > 0 ? data : DEMO_STORES)
+      } catch (err) {
+        console.warn('Failed to load stores from database, using local data:', err)
+        setStores(DEMO_STORES)
+      }
     }
   }
 
   const filteredStores = stores.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.village?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.owner_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   async function handleSubmit(e) {

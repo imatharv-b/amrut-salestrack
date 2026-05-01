@@ -26,7 +26,7 @@ export default function LogVisit() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => {}, // silently ignore GPS errors
+        () => { }, // silently ignore GPS errors
         { enableHighAccuracy: true, timeout: 10000 }
       )
     }
@@ -36,11 +36,18 @@ export default function LogVisit() {
     if (DEMO_MODE) {
       setStores(DEMO_STORES)
     } else {
-      const { data } = await supabase
-        .from('stores')
-        .select('*, routes(name)')
-        .order('name')
-      setStores(data || [])
+      try {
+        const { data, error } = await supabase
+          .from('stores')
+          .select('*, routes(name)')
+          .order('name')
+        if (error) throw error
+        // Fallback to demo stores if database is empty
+        setStores(data && data.length > 0 ? data : DEMO_STORES)
+      } catch (err) {
+        console.warn('Failed to load stores from database, using local data:', err)
+        setStores(DEMO_STORES)
+      }
     }
   }
 
@@ -91,7 +98,7 @@ export default function LogVisit() {
       setFollowUpNote('')
       setSelectedStore(null)
       setSearchTerm('')
-      
+
       setTimeout(() => {
         setSuccess(false)
         setOfflineSaved(false)
@@ -199,7 +206,7 @@ export default function LogVisit() {
             <textarea
               value={stockRemaining}
               onChange={(e) => setStockRemaining(e.target.value)}
-              placeholder="e.g., DAP 5 bags, Urea 10 bags, Amrut Gold 3 bottles..."
+              placeholder="e.g., Kesar Shakti 5 bags, Black Gold 10 Bottle, F Guard 3 bottles..."
               className="input-field min-h-[80px] resize-none"
               rows={2}
             />
@@ -210,7 +217,7 @@ export default function LogVisit() {
         {/* Follow-up: When will they pay? */}
         {selectedStore && (
           <div className="animate-fade-in-up">
-            <label className="input-label">Payment Follow-up / पैसे कब देंगे?</label>
+            <label className="input-label">Visit / Payment Follow-up </label>
             <input
               type="date"
               value={followUpDate}
@@ -246,8 +253,8 @@ export default function LogVisit() {
         {/* Submit */}
         {selectedStore && (
           <div className="animate-fade-in-up pt-2">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="btn-primary text-xl py-5"
             >

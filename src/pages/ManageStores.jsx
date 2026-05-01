@@ -30,8 +30,13 @@ export default function ManageStores() {
           supabase.from('stores').select('*').order('name'),
           supabase.from('routes').select('*').order('name'),
         ])
-        setStores(storeRes.data || []); setRoutes(routeRes.data || [])
-      } catch (err) { console.error('Load error:', err) }
+        // Fallback to demo data if database tables are empty
+        setStores(storeRes.data && storeRes.data.length > 0 ? storeRes.data : DEMO_STORES)
+        setRoutes(routeRes.data && routeRes.data.length > 0 ? routeRes.data : DEMO_ROUTES)
+      } catch (err) {
+        console.warn('Load error, using local data:', err)
+        setStores(DEMO_STORES); setRoutes(DEMO_ROUTES)
+      }
     }
     setLoading(false)
   }

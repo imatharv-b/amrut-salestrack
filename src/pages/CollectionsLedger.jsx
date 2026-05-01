@@ -14,27 +14,26 @@ export default function CollectionsLedger() {
   }, [])
 
   function loadLedgers() {
-    if (DEMO_MODE) {
-      setRoutes(DEMO_ROUTES)
+    // Always use demo data for ledger computation (Supabase fetch not yet implemented for ledger)
+    setRoutes(DEMO_ROUTES)
+    
+    const ledgerData = DEMO_STORES.map(store => {
+      const storeInvoices = DEMO_INVOICES.filter(i => i.store_id === store.id)
+      const storeCollections = DEMO_COLLECTIONS.filter(c => c.store_id === store.id).sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date))
       
-      const ledgerData = DEMO_STORES.map(store => {
-        const storeInvoices = DEMO_INVOICES.filter(i => i.store_id === store.id)
-        const storeCollections = DEMO_COLLECTIONS.filter(c => c.store_id === store.id).sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date))
-        
-        const totalInvoiced = storeInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0)
-        const totalCollected = storeCollections.reduce((sum, c) => sum + Number(c.amount), 0)
-        
-        return {
-          ...store,
-          route_name: getRouteName(store.route_id),
-          total_invoiced: totalInvoiced,
-          total_collected: totalCollected,
-          outstanding: totalInvoiced - totalCollected,
-          collections: storeCollections
-        }
-      })
-      setLedgers(ledgerData)
-    }
+      const totalInvoiced = storeInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0)
+      const totalCollected = storeCollections.reduce((sum, c) => sum + Number(c.amount), 0)
+      
+      return {
+        ...store,
+        route_name: getRouteName(store.route_id),
+        total_invoiced: totalInvoiced,
+        total_collected: totalCollected,
+        outstanding: totalInvoiced - totalCollected,
+        collections: storeCollections
+      }
+    })
+    setLedgers(ledgerData)
   }
 
   const filteredLedgers = ledgers.filter(L => {
