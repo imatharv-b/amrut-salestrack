@@ -64,29 +64,59 @@ export default function ManageUsers() {
         if (formData.password.length < 6) throw new Error('Password must be at least 6 characters')
         
         // 1. Create a temporary Supabase client to sign up the user without logging the manager out
-        const tempSupabase = await import('@supabase/supabase-js').then(m => m.createClient(
-          import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co',
-          import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key',
+        const { createClient } = await import('@supabase/supabase-js')
+        const tempSupabase = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY,
           { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-        ))
-        
-        // Use a timeout promise to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please try again.')), 10000))
+        )
         
         // 2. Create auth user via temporary client
-        const authPromise = tempSupabase.auth.signUp({ email: formData.email, password: formData.password })
-        const { data: signUpData, error: signUpErr } = await Promise.race([authPromise, timeoutPromise])
+        const { data: signUpData, error: signUpErr } = await tempSupabase.auth.signUp({ 
+          email: formData.email, 
+          password: formData.password 
+        })
         
         if (signUpErr) throw signUpErr
         if (!signUpData?.user) throw new Error('Failed to create user account')
         
-        // 3. Insert profile using the MAIN client (which is still authenticated as the manager, passing RLS)
-        const profilePromise = supabase.from('users').insert({
-          id: signUpData.user.id, name: formData.name, phone: formData.phone,
-          role: formData.role, route_id: formData.route_id || null
-        })
-        const { error: profileErr } = await Promise.race([profilePromise, timeoutPromise])
-        if (profileErr) throw profileErr
+        const newUserId = signUpData.user.id
+        
+        // 3. Insert profile using MAIN client (manager session for RLS)
+        // Try up to 3 times to handle transient failures
+        let profileInserted = false
+        let lastError = null
+        
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const { error: profileErr } = await supabase.from('users').insert({
+            id: newUserId, 
+            name: formData.name, 
+            phone: formData.phone,
+            role: formData.role, 
+            route_id: formData.route_id || null
+          })
+          
+          if (!profileErr) {
+            profileInserted = true
+            break
+          }
+          
+          // If it's a duplicate key error, the profile already exists
+          if (profileErr.code === '23505') {
+            profileInserted = true
+            break
+          }
+          
+          lastError = profileErr
+          console.warn(`Profile insert attempt ${attempt} failed:`, profileErr.message)
+          
+          // Wait briefly before retry
+          if (attempt < 3) await new Promise(r => setTimeout(r, 1000))
+        }
+        
+        if (!profileInserted) {
+          throw new Error(`Auth account created (${formData.email}) but profile save failed: ${lastError?.message}. Go to Manage Users and use "Fix Missing Profiles" to repair.`)
+        }
         
         setSuccessMsg(`${formData.name} added successfully!`)
         setTimeout(() => { setModalOpen(false); loadData() }, 1500)
@@ -219,11 +249,11 @@ export default function ManageUsers() {
       )}
 
       {/* Add/Edit User Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'Edit User' : 'Add New Salesman'} size="md">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'Edit User' : 'Add New User'} size="md">
         <form onSubmit={handleSave} className="space-y-4">
           {!editUser && (
             <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium mb-2">
-              <strong>⚠️ Important:</strong> If you receive emails from Supabase instead of instant login, you must disable <strong>"Confirm email"</strong> in your Supabase Dashboard ➔ Authentication ➔ Providers ➔ Email.
+              <strong>⚠️ Important:</strong> Go to Supabase Dashboard → Authentication → Providers → Email and <strong>disable "Confirm email"</strong> so users can login immediately.
             </div>
           )}
           {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">{error}</div>}
@@ -264,7 +294,7 @@ export default function ManageUsers() {
               {routes.map(r => (<option key={r.id} value={r.id}>{r.name}</option>))}
             </select>
           </div>
-          <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : (editUser ? 'Update User' : 'Add Salesman')}</button>
+          <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : (editUser ? 'Update User' : 'Create User')}</button>
         </form>
       </Modal>
     </div>
