@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { DEMO_MODE, DEMO_VISITS } from './demoData'
 
 /**
  * Pushes a visit to LocalStorage when offline
@@ -33,48 +32,29 @@ export async function syncOfflineVisits() {
 
   const toRemove = []
 
-  // Attempt to sync each one individually immediately payload by payload
   for (const visit of queue) {
     try {
-      if (DEMO_MODE) {
-        // Mock Push
-        DEMO_VISITS.push({
-          id: `visit-synced-${Date.now()}`,
-          store_id: visit.store_id,
-          salesman_id: visit.salesman_id,
-          visited_date: visit.visited_date,
-          remarks: `[AUTO-SYNCED] ${visit.remarks}`,
-          lat: visit.lat,
-          lng: visit.lng,
-          created_at: new Date().toISOString()
-        })
-      } else {
-        // Live Supabase Sync
-        const { error } = await supabase.from('visits').insert({
-          store_id: visit.store_id,
-          salesman_id: visit.salesman_id,
-          visited_date: visit.visited_date,
-          remarks: visit.remarks,
-          lat: visit.lat,
-          lng: visit.lng,
-        })
-        if (error) throw error
-      }
-      
-      // If no error, flag for removal
+      const { error } = await supabase.from('visits').insert({
+        store_id: visit.store_id,
+        salesman_id: visit.salesman_id,
+        visited_date: visit.visited_date,
+        remarks: visit.remarks,
+        stock_remaining: visit.stock_remaining,
+        follow_up_date: visit.follow_up_date,
+        follow_up_note: visit.follow_up_note,
+        lat: visit.lat,
+        lng: visit.lng,
+      })
+      if (error) throw error
       toRemove.push(visit._offline_id)
     } catch (err) {
       console.error('Failed to sync specific visit:', err)
-      // We skip pushing it to `toRemove`. It stays in the queue to be retried next time.
     }
   }
 
   if (toRemove.length > 0) {
-    // Purge successful synced objects
     const newQueue = queue.filter(v => !toRemove.includes(v._offline_id))
     localStorage.setItem('offline_visits_queue', JSON.stringify(newQueue))
-    
-    // Alert the user on UI
     alert(`✅ Successfully synced ${toRemove.length} queued field visits!`)
   }
 }

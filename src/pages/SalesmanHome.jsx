@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatCard from '../components/StatCard'
-import { DEMO_MODE, DEMO_VISITS, DEMO_COLLECTIONS, DEMO_STORES, DEMO_ROUTES, getStoreName, getStoreOutstanding } from '../lib/demoData'
 import { supabase } from '../lib/supabase'
 
 export default function SalesmanHome() {
@@ -10,165 +9,80 @@ export default function SalesmanHome() {
   const [todayVisits, setTodayVisits] = useState([])
   const [todayCollections, setTodayCollections] = useState([])
   const [loading, setLoading] = useState(true)
-
   const today = new Date().toISOString().split('T')[0]
-  const greeting = getGreeting()
 
   function getGreeting() {
     const hour = new Date().getHours()
-    if (hour < 12) return 'Good Morning ☀️'
-    if (hour < 17) return 'Good Afternoon 🌤️'
-    return 'Good Evening 🌙'
+    if (hour < 12) return 'Good Morning'
+    if (hour < 17) return 'Good Afternoon'
+    return 'Good Evening'
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
   async function loadData() {
     try {
-      if (DEMO_MODE) {
-        setTodayVisits(DEMO_VISITS.filter(v => v.visit_date === today))
-        setTodayCollections(DEMO_COLLECTIONS.filter(c => c.collection_date === today))
-      } else {
-        const { data: visits } = await supabase
-          .from('visits')
-          .select('*, stores(name, village)')
-          .eq('salesman_id', profile?.id)
-          .eq('visit_date', today)
-
-        const { data: collections } = await supabase
-          .from('collections')
-          .select('*, stores(name)')
-          .eq('salesman_id', profile?.id)
-          .eq('collection_date', today)
-
-        setTodayVisits(visits || [])
-        setTodayCollections(collections || [])
-      }
-    } catch (err) {
-      console.error('Error loading data:', err)
-    } finally {
-      setLoading(false)
-    }
+      const [vRes, cRes] = await Promise.all([
+        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visit_date', today),
+        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('collection_date', today),
+      ])
+      setTodayVisits(vRes.data || [])
+      setTodayCollections(cRes.data || [])
+    } catch (err) { console.error(err) } finally { setLoading(false) }
   }
 
   const totalCollectedToday = todayCollections.reduce((sum, c) => sum + Number(c.amount), 0)
 
   return (
     <div className="page-container">
-      {/* Greeting & Logout */}
       <div className="mb-6 animate-fade-in-up flex items-start justify-between">
         <div>
-          <p className="text-sm text-gray-500 font-medium">{greeting}</p>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {profile?.full_name?.split(' ')[0] || profile?.name?.split(' ')[0] || 'Salesman'}
-          </h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+          <p className="text-sm text-gray-500 font-medium">{getGreeting()} ☀️</p>
+          <h1 className="text-2xl font-bold text-gray-800">{profile?.name?.split(' ')[0] || 'Salesman'}</h1>
+          <p className="text-xs text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
-        <button
-          onClick={signOut}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all shadow-sm active:scale-95 text-sm font-bold mt-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
+        <button onClick={signOut} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all shadow-sm active:scale-95 text-sm font-bold mt-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           Logout
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6 stagger-children">
-        <div className="animate-fade-in-up">
-          <StatCard 
-            icon="🏪" 
-            label="Visits Today" 
-            value={todayVisits.length}
-            sub="दुकानें visited"
-            color="brand" 
-          />
-        </div>
-        <div className="animate-fade-in-up">
-          <StatCard 
-            icon="💰" 
-            label="Collected Today" 
-            value={`₹${totalCollectedToday.toLocaleString('en-IN')}`}
-            sub="आज की वसूली"
-            color="amber" 
-          />
-        </div>
+        <div className="animate-fade-in-up"><StatCard icon="🏪" label="Visits Today" value={todayVisits.length} sub="दुकानें visited" color="brand" /></div>
+        <div className="animate-fade-in-up"><StatCard icon="💰" label="Collected Today" value={`₹${totalCollectedToday.toLocaleString('en-IN')}`} sub="आज की वसूली" color="amber" /></div>
       </div>
 
-      {/* Quick Actions */}
       <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
         <h2 className="section-header">Quick Actions / त्वरित कार्य</h2>
         <div className="grid grid-cols-4 gap-2">
-          <Link
-            to="/attendance"
-            className="flex flex-col items-center gap-2 p-3 bg-teal-50 rounded-2xl border-2 border-teal-100
-              active:scale-[0.97] transition-all duration-150 hover:border-teal-300 hover:shadow-md"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-md shadow-teal-500/25">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </div>
+          <Link to="/attendance" className="flex flex-col items-center gap-2 p-3 bg-teal-50 rounded-2xl border-2 border-teal-100 active:scale-[0.97] transition-all duration-150 hover:border-teal-300 hover:shadow-md">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-md shadow-teal-500/25"><svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></div>
             <span className="text-[11px] font-semibold text-teal-700">Attendance</span>
             <span className="text-[10px] text-teal-500">हाजिरी</span>
           </Link>
-
-          <Link
-            to="/visit"
-            className="flex flex-col items-center gap-2 p-3 bg-brand-50 rounded-2xl border-2 border-brand-100
-              active:scale-[0.97] transition-all duration-150 hover:border-brand-300 hover:shadow-md"
-          >
-            <div className="w-11 h-11 rounded-xl gradient-brand flex items-center justify-center shadow-md shadow-brand-600/25">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
+          <Link to="/visit" className="flex flex-col items-center gap-2 p-3 bg-brand-50 rounded-2xl border-2 border-brand-100 active:scale-[0.97] transition-all duration-150 hover:border-brand-300 hover:shadow-md">
+            <div className="w-11 h-11 rounded-xl gradient-brand flex items-center justify-center shadow-md shadow-brand-600/25"><svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
             <span className="text-[11px] font-semibold text-brand-700">Log Visit</span>
             <span className="text-[10px] text-brand-500">विजिट दर्ज</span>
           </Link>
-          
-          <Link
-            to="/collect"
-            className="flex flex-col items-center gap-2 p-3 bg-amber-50 rounded-2xl border-2 border-amber-100
-              active:scale-[0.97] transition-all duration-150 hover:border-amber-300 hover:shadow-md"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-md shadow-amber-500/25">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
+          <Link to="/collect" className="flex flex-col items-center gap-2 p-3 bg-amber-50 rounded-2xl border-2 border-amber-100 active:scale-[0.97] transition-all duration-150 hover:border-amber-300 hover:shadow-md">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-md shadow-amber-500/25"><svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg></div>
             <span className="text-[11px] font-semibold text-amber-700">Collect</span>
             <span className="text-[10px] text-amber-500">वसूली</span>
           </Link>
-
-          <Link
-            to="/add-store"
-            className="flex flex-col items-center gap-2 p-3 bg-purple-50 rounded-2xl border-2 border-purple-100
-              active:scale-[0.97] transition-all duration-150 hover:border-purple-300 hover:shadow-md"
-          >
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/25">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
+          <Link to="/add-store" className="flex flex-col items-center gap-2 p-3 bg-purple-50 rounded-2xl border-2 border-purple-100 active:scale-[0.97] transition-all duration-150 hover:border-purple-300 hover:shadow-md">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/25"><svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg></div>
             <span className="text-[11px] font-semibold text-purple-700">Add Store</span>
             <span className="text-[10px] text-purple-500">कृषी केंद्र</span>
           </Link>
         </div>
       </div>
 
-      {/* Today's Activity */}
       <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
         <h2 className="section-header">Today's Activity / आज की गतिविधि</h2>
-        
-        {todayVisits.length === 0 && todayCollections.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center p-8"><div className="w-8 h-8 border-brand-200 border-t-brand-600 rounded-full animate-spin" style={{ borderWidth: '3px' }} /></div>
+        ) : todayVisits.length === 0 && todayCollections.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
             <span className="text-4xl mb-3 block">📝</span>
             <p className="text-sm text-gray-500">No activity yet today</p>
@@ -176,32 +90,22 @@ export default function SalesmanHome() {
           </div>
         ) : (
           <div className="space-y-2">
-            {todayVisits.map(visit => (
-              <div key={visit.id} className="bg-white rounded-xl p-3.5 border border-gray-100 flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center shrink-0">
-                  <span className="text-sm">🏪</span>
-                </div>
+            {todayVisits.map(v => (
+              <div key={v.id} className="bg-white rounded-xl p-3.5 border border-gray-100 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center shrink-0"><span className="text-sm">🏪</span></div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">
-                    {DEMO_MODE ? getStoreName(visit.store_id) : visit.stores?.name}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">{visit.remarks || 'Visit logged'}</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{v.stores?.name || 'Store'}</p>
+                  <p className="text-xs text-gray-500 truncate">{v.remarks || 'Visit logged'}</p>
                 </div>
                 <span className="badge-green text-[10px]">Visit ✓</span>
               </div>
             ))}
-            {todayCollections.map(col => (
-              <div key={col.id} className="bg-white rounded-xl p-3.5 border border-gray-100 flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                  <span className="text-sm">💰</span>
-                </div>
+            {todayCollections.map(c => (
+              <div key={c.id} className="bg-white rounded-xl p-3.5 border border-gray-100 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0"><span className="text-sm">💰</span></div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">
-                    {DEMO_MODE ? getStoreName(col.store_id) : col.stores?.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    ₹{Number(col.amount).toLocaleString('en-IN')} • {col.payment_mode?.toUpperCase()}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{c.stores?.name || 'Store'}</p>
+                  <p className="text-xs text-gray-500">₹{Number(c.amount).toLocaleString('en-IN')} • {c.payment_mode?.toUpperCase()}</p>
                 </div>
                 <span className="badge-amber text-[10px]">₹ Collected</span>
               </div>
