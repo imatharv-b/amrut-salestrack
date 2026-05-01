@@ -23,8 +23,8 @@ export default function SalesmanHome() {
   async function loadData() {
     try {
       const [vRes, cRes] = await Promise.all([
-        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visit_date', today),
-        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('collection_date', today),
+        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
+        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])

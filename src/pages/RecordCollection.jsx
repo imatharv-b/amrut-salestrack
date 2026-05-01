@@ -38,7 +38,7 @@ export default function RecordCollection() {
       const { error } = await supabase.from('collections').insert({
         store_id: selectedStore.id, salesman_id: profile.id,
         amount: Number(amount), payment_mode: paymentMode,
-        collection_date: collectionDate, remarks,
+        payment_date: collectionDate, remarks,
       })
       if (error) throw error
       setSuccess(true)

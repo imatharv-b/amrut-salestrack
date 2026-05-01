@@ -14,9 +14,9 @@ export default function MyVisits() {
   async function loadVisits() {
     setLoading(true)
     try {
-      let query = supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).order('visit_date', { ascending: false })
-      if (dateFilter === 'today') query = query.eq('visit_date', new Date().toISOString().split('T')[0])
-      else if (dateFilter === 'week') query = query.gte('visit_date', new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0])
+      let query = supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).order('visited_date', { ascending: false })
+      if (dateFilter === 'today') query = query.eq('visited_date', new Date().toISOString().split('T')[0])
+      else if (dateFilter === 'week') query = query.gte('visited_date', new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0])
       const { data } = await query.limit(50)
       setVisits(data || [])
     } catch (err) { console.error(err) } finally { setLoading(false) }
@@ -41,7 +41,7 @@ export default function MyVisits() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-semibold text-gray-800">🏪 {visit.stores?.name || 'Store'}</p>
-                  <p className="text-xs text-gray-500">{visit.stores?.village ? visit.stores.village + ' • ' : ''}{new Date(visit.visit_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  <p className="text-xs text-gray-500">{visit.stores?.village ? visit.stores.village + ' • ' : ''}{new Date(visit.visited_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
                 <span className="badge-green">✓</span>
               </div>
