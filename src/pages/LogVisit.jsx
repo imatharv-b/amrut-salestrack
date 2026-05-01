@@ -43,29 +43,45 @@ export default function LogVisit() {
     s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
     if (!selectedStore) return
-    setLoading(true)
-    try {
-      const visitPayload = {
-        store_id: selectedStore.id, salesman_id: profile?.id,
-        visit_date: today, remarks,
-        stock_remaining: stockRemaining || null,
-        follow_up_date: followUpDate || null, follow_up_note: followUpNote || null,
-      }
-      if (!navigator.onLine) {
-        queueOfflineVisit(visitPayload)
-        setOfflineSaved(true)
-      } else {
-        const { error } = await supabase.from('visits').insert(visitPayload)
-        if (error) throw error
-        setSuccess(true)
-      }
-      setRemarks(''); setStockRemaining(''); setFollowUpDate(''); setFollowUpNote(''); setSelectedStore(null); setSearchTerm('')
-      setTimeout(() => { setSuccess(false); setOfflineSaved(false) }, 4000)
-    } catch (err) { alert('Error saving visit: ' + err.message) }
-    finally { setLoading(false) }
+    
+    // 1. Create payload
+    const visitPayload = {
+      store_id: selectedStore.id, salesman_id: profile?.id,
+      visit_date: today, remarks,
+      stock_remaining: stockRemaining || null,
+      follow_up_date: followUpDate || null, follow_up_note: followUpNote || null,
+    }
+
+    // 2. Optimistic UI: Clear form and show success immediately
+    setRemarks('')
+    setStockRemaining('')
+    setFollowUpDate('')
+    setFollowUpNote('')
+    setSelectedStore(null)
+    setSearchTerm('')
+
+    if (!navigator.onLine) {
+      queueOfflineVisit(visitPayload)
+      setOfflineSaved(true)
+      setTimeout(() => setOfflineSaved(false), 4000)
+    } else {
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 4000)
+      
+      // 3. Perform DB insert in background (fire-and-forget)
+      supabase.from('visits').insert(visitPayload).then(({ error }) => {
+        if (error) {
+          console.error("DB error, queueing offline:", error)
+          queueOfflineVisit(visitPayload)
+        }
+      }).catch(err => {
+         console.error("Network error, queueing offline:", err)
+         queueOfflineVisit(visitPayload)
+      })
+    }
   }
 
   return (
@@ -139,8 +155,8 @@ export default function LogVisit() {
         )}
         {selectedStore && (
           <div className="animate-fade-in-up pt-2">
-            <button type="submit" disabled={loading} className="btn-primary text-xl py-5">
-              {loading ? (<span className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span>) : (<>Visit Done ✓</>)}
+            <button type="submit" className="btn-primary text-xl py-5">
+              Visit Done ✓
             </button>
           </div>
         )}
