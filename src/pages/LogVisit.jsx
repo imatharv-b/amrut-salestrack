@@ -53,7 +53,6 @@ export default function LogVisit() {
         visit_date: today, remarks,
         stock_remaining: stockRemaining || null,
         follow_up_date: followUpDate || null, follow_up_note: followUpNote || null,
-        lat: gps?.lat || null, lng: gps?.lng || null,
       }
       if (!navigator.onLine) {
         queueOfflineVisit(visitPayload)
