@@ -115,83 +115,85 @@ export default function CollectionsLedger() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="text-left px-5 py-4 font-semibold w-1/3">Krishi Kendra</th>
-                <th className="text-left px-5 py-4 font-semibold">Route</th>
-                <th className="text-right px-5 py-4 font-semibold">Total Invoiced</th>
-                <th className="text-right px-5 py-4 font-semibold">Total Collected</th>
-                <th className="text-right px-5 py-4 font-semibold">Balance</th>
-                <th className="text-center px-4 py-4 w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredLedgers.length === 0 ? (
-                <tr><td colSpan="6" className="py-10"><EmptyState title="No Krishi Kendras found" /></td></tr>
-              ) : filteredLedgers.map(store => (
-                <Fragment key={store.id}>
-                  <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExpand(store.id)}>
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-gray-800">{store.name}</p>
-                      <p className="text-xs text-gray-500">{store.village}</p>
-                    </td>
-                    <td className="px-5 py-4 text-gray-600">{store.route_name}</td>
-                    <td className="px-5 py-4 text-right text-gray-700">₹{store.total_invoiced.toLocaleString('en-IN')}</td>
-                    <td className="px-5 py-4 text-right text-green-700">₹{store.total_collected.toLocaleString('en-IN')}</td>
-                    <td className="px-5 py-4 text-right">
-                      <span className={`font-bold ${store.outstanding > 10000 ? 'text-red-600' : store.outstanding > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                        ₹{store.outstanding.toLocaleString('en-IN')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button className="text-gray-400 hover:text-brand-600 transition-colors">
-                        <svg className={`w-5 h-5 transform transition-transform ${expandedStoreId === store.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                  {/* Expanded Ledger Row */}
-                  {expandedStoreId === store.id && (
-                    <tr className="bg-gray-50/50">
-                      <td colSpan="6" className="px-5 py-4 border-l-4 border-l-brand-500">
-                        <div className="pl-4">
-                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Payment History</h4>
-                          {store.collections.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic">No payments recorded</p>
-                          ) : (
-                            <table className="w-full text-left text-sm mt-2">
-                               <thead>
-                                 <tr className="text-gray-500 text-xs border-b border-gray-200">
-                                   <th className="pb-2 font-medium">Date</th>
-                                   <th className="pb-2 font-medium">Collected By</th>
-                                   <th className="pb-2 font-medium">Mode</th>
-                                   <th className="pb-2 font-medium">Remarks</th>
-                                   <th className="pb-2 font-medium text-right">Amount</th>
-                                 </tr>
-                               </thead>
-                               <tbody className="divide-y divide-gray-100">
-                                 {store.collections.map(c => (
-                                   <tr key={c.id}>
-                                     <td className="py-2 text-gray-700">{new Date(c.payment_date).toLocaleDateString('en-IN')}</td>
-                                     <td className="py-2 text-gray-700">{c.salesman_name}</td>
-                                     <td className="py-2 text-gray-700 uppercase text-xs font-semibold badge bg-gray-200">{c.payment_mode}</td>
-                                     <td className="py-2 text-gray-500 text-xs max-w-xs truncate">{c.remarks || '-'}</td>
-                                     <td className="py-2 text-right font-semibold text-green-700">₹{Number(c.amount).toLocaleString('en-IN')}</td>
-                                   </tr>
-                                 ))}
-                               </tbody>
-                            </table>
-                          )}
-                        </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="text-left px-5 py-4 font-semibold w-1/3">Krishi Kendra</th>
+                  <th className="text-left px-5 py-4 font-semibold">Route</th>
+                  <th className="text-right px-5 py-4 font-semibold whitespace-nowrap">Total Invoiced</th>
+                  <th className="text-right px-5 py-4 font-semibold whitespace-nowrap">Total Collected</th>
+                  <th className="text-right px-5 py-4 font-semibold">Balance</th>
+                  <th className="text-center px-4 py-4 w-12"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredLedgers.length === 0 ? (
+                  <tr><td colSpan="6" className="py-10"><EmptyState title="No Krishi Kendras found" /></td></tr>
+                ) : filteredLedgers.map(store => (
+                  <Fragment key={store.id}>
+                    <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExpand(store.id)}>
+                      <td className="px-5 py-4 min-w-[150px]">
+                        <p className="font-semibold text-gray-800">{store.name}</p>
+                        <p className="text-xs text-gray-500">{store.village}</p>
+                      </td>
+                      <td className="px-5 py-4 text-gray-600 whitespace-nowrap">{store.route_name}</td>
+                      <td className="px-5 py-4 text-right text-gray-700 whitespace-nowrap">₹{store.total_invoiced.toLocaleString('en-IN')}</td>
+                      <td className="px-5 py-4 text-right text-green-700 whitespace-nowrap">₹{store.total_collected.toLocaleString('en-IN')}</td>
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                        <span className={`font-bold ${store.outstanding > 10000 ? 'text-red-600' : store.outstanding > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                          ₹{store.outstanding.toLocaleString('en-IN')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button className="text-gray-400 hover:text-brand-600 transition-colors">
+                          <svg className={`w-5 h-5 transform transition-transform ${expandedStoreId === store.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                    {/* Expanded Ledger Row */}
+                    {expandedStoreId === store.id && (
+                      <tr className="bg-gray-50/50">
+                        <td colSpan="6" className="px-5 py-4 border-l-4 border-l-brand-500">
+                          <div className="pl-4 overflow-x-auto">
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Payment History</h4>
+                            {store.collections.length === 0 ? (
+                              <p className="text-sm text-gray-400 italic">No payments recorded</p>
+                            ) : (
+                              <table className="w-full text-left text-sm mt-2 min-w-[400px]">
+                                 <thead>
+                                   <tr className="text-gray-500 text-xs border-b border-gray-200">
+                                     <th className="pb-2 font-medium">Date</th>
+                                     <th className="pb-2 font-medium">Collected By</th>
+                                     <th className="pb-2 font-medium">Mode</th>
+                                     <th className="pb-2 font-medium">Remarks</th>
+                                     <th className="pb-2 font-medium text-right">Amount</th>
+                                   </tr>
+                                 </thead>
+                                 <tbody className="divide-y divide-gray-100">
+                                   {store.collections.map(c => (
+                                     <tr key={c.id}>
+                                       <td className="py-2 text-gray-700 whitespace-nowrap">{new Date(c.payment_date).toLocaleDateString('en-IN')}</td>
+                                       <td className="py-2 text-gray-700 whitespace-nowrap">{c.salesman_name}</td>
+                                       <td className="py-2 text-gray-700 uppercase text-xs font-semibold"><span className="px-2 py-1 bg-gray-200 rounded">{c.payment_mode}</span></td>
+                                       <td className="py-2 text-gray-500 text-xs max-w-xs truncate">{c.remarks || '-'}</td>
+                                       <td className="py-2 text-right font-semibold text-green-700 whitespace-nowrap">₹{Number(c.amount).toLocaleString('en-IN')}</td>
+                                     </tr>
+                                   ))}
+                                 </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
