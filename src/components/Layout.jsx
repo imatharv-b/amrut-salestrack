@@ -7,7 +7,7 @@ export default function Layout() {
   const { isManager, isSalesman, profile, signOut } = useAuth()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-[100dvh] bg-gray-50">
       {/* Desktop sidebar for manager */}
       {isManager && <Sidebar />}
 
