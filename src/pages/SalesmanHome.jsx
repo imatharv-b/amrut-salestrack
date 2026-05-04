@@ -8,6 +8,7 @@ export default function SalesmanHome() {
   const { profile, signOut } = useAuth()
   const [todayVisits, setTodayVisits] = useState([])
   const [todayCollections, setTodayCollections] = useState([])
+  const [dailyRoutes, setDailyRoutes] = useState([])
   const [loading, setLoading] = useState(true)
   const today = new Date().toISOString().split('T')[0]
 
@@ -22,12 +23,14 @@ export default function SalesmanHome() {
 
   async function loadData() {
     try {
-      const [vRes, cRes] = await Promise.all([
+      const [vRes, cRes, dailyRes] = await Promise.all([
         supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
         supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
+        supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today)
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])
+      setDailyRoutes(dailyRes.data || [])
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }
 
@@ -46,6 +49,16 @@ export default function SalesmanHome() {
           Logout
         </button>
       </div>
+
+      {dailyRoutes.length > 0 && (
+        <div className="mb-6 animate-fade-in-up bg-brand-50 border border-brand-200 rounded-xl p-4 shadow-sm flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center shrink-0 text-xl">🎯</div>
+          <div>
+            <h3 className="font-bold text-brand-800 text-sm">Today's Route Assignment</h3>
+            <p className="text-xs text-brand-600 mt-0.5 font-medium">Please focus on visiting: {dailyRoutes.map(d => d.routes?.name).join(', ')}</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 mb-6 stagger-children">
         <div className="animate-fade-in-up"><StatCard icon="🏪" label="Visits Today" value={todayVisits.length} sub="दुकानें visited" color="brand" /></div>

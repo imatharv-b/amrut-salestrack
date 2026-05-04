@@ -15,55 +15,82 @@ export default function ManageUsers() {
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', phone: '', role: 'salesman', route_id: ''
+    name: '', email: '', password: '', phone: '', role: 'salesman', route_ids: []
   })
 
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
     try {
-      const [usersRes, routesRes] = await Promise.all([
+      const [usersRes, routesRes, userRoutesRes] = await Promise.all([
         supabase.from('users').select('*').order('created_at', { ascending: false }),
-        supabase.from('routes').select('*').order('name')
+        supabase.from('routes').select('*').order('name'),
+        supabase.from('user_routes').select('*')
       ])
-      setUsers(usersRes.data || [])
-      setRoutes(routesRes.data || [])
+      
+      const allRoutes = routesRes.data || []
+      const allUserRoutes = userRoutesRes.data || []
+      
+      const usersData = (usersRes.data || []).map(u => {
+        // Find assigned routes for this user
+        const assigned = allUserRoutes.filter(ur => ur.user_id === u.id).map(ur => ur.route_id)
+        // Ensure legacy route_id is included if not in user_routes (fallback)
+        if (u.route_id && !assigned.includes(u.route_id)) {
+          assigned.push(u.route_id)
+        }
+        return { ...u, assigned_routes: assigned }
+      })
+      
+      setUsers(usersData)
+      setRoutes(allRoutes)
     } catch (err) {
       console.error('Error fetching admin data:', err)
     } finally { setLoading(false) }
   }
 
-  function getRouteName(routeId) {
-    if (!routeId) return '—'
-    return routes.find(r => r.id === routeId)?.name || '—'
+  function getRouteNames(routeIds) {
+    if (!routeIds || routeIds.length === 0) return '—'
+    return routeIds.map(id => routes.find(r => r.id === id)?.name).filter(Boolean).join(', ')
   }
 
   function openAdd() {
     setEditUser(null); setError(''); setSuccessMsg('')
-    setFormData({ name: '', email: '', password: '', phone: '', role: 'salesman', route_id: '' })
+    setFormData({ name: '', email: '', password: '', phone: '', role: 'salesman', route_ids: [] })
     setModalOpen(true)
   }
 
   function openEdit(u) {
     setEditUser(u); setError(''); setSuccessMsg('')
-    setFormData({ name: u.name || '', email: '', password: '', phone: u.phone || '', role: u.role, route_id: u.route_id || '' })
+    setFormData({ name: u.name || '', email: '', password: '', phone: u.phone || '', role: u.role, route_ids: u.assigned_routes || [] })
     setModalOpen(true)
+  }
+
+  function toggleRouteSelection(routeId) {
+    setFormData(prev => {
+      const isSelected = prev.route_ids.includes(routeId)
+      if (isSelected) {
+        return { ...prev, route_ids: prev.route_ids.filter(id => id !== routeId) }
+      } else {
+        return { ...prev, route_ids: [...prev.route_ids, routeId] }
+      }
+    })
   }
 
   async function handleSave(e) {
     e.preventDefault(); setSaving(true); setError(''); setSuccessMsg('')
     try {
+      let targetUserId = editUser?.id
+      
       if (editUser) {
-        const updateData = { name: formData.name, phone: formData.phone, role: formData.role, route_id: formData.route_id || null }
+        const primaryRouteId = formData.route_ids.length > 0 ? formData.route_ids[0] : null
+        const updateData = { name: formData.name, phone: formData.phone, role: formData.role, route_id: primaryRouteId }
         const { error: e2 } = await supabase.from('users').update(updateData).eq('id', editUser.id)
         if (e2) throw e2
-        setSuccessMsg('User updated successfully!')
-        setTimeout(() => { setModalOpen(false); loadData() }, 1000)
       } else {
         if (!formData.email || !formData.password) throw new Error('Email and password are required')
         if (formData.password.length < 6) throw new Error('Password must be at least 6 characters')
         
-        // 1. Create a temporary Supabase client to sign up the user without logging the manager out
+        // Create user via temp client
         const { createClient } = await import('@supabase/supabase-js')
         const tempSupabase = createClient(
           import.meta.env.VITE_SUPABASE_URL,
@@ -71,7 +98,6 @@ export default function ManageUsers() {
           { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
         )
         
-        // 2. Create auth user via temporary client
         const { data: signUpData, error: signUpErr } = await tempSupabase.auth.signUp({ 
           email: formData.email, 
           password: formData.password 
@@ -80,61 +106,46 @@ export default function ManageUsers() {
         if (signUpErr) throw signUpErr
         if (!signUpData?.user) throw new Error('Failed to create user account')
         
-        const newUserId = signUpData.user.id
+        targetUserId = signUpData.user.id
+        const primaryRouteId = formData.route_ids.length > 0 ? formData.route_ids[0] : null
         
-        // 3. Insert profile using MAIN client (manager session for RLS)
-        // Try up to 3 times to handle transient failures
+        // Insert profile
         let profileInserted = false
         let lastError = null
-        
         for (let attempt = 1; attempt <= 3; attempt++) {
           const { error: profileErr } = await supabase.from('users').insert({
-            id: newUserId, 
-            name: formData.name, 
-            phone: formData.phone,
-            role: formData.role, 
-            route_id: formData.route_id || null
+            id: targetUserId, name: formData.name, phone: formData.phone,
+            role: formData.role, route_id: primaryRouteId
           })
-          
-          if (!profileErr) {
-            profileInserted = true
-            break
-          }
-          
-          // If it's a duplicate key error, the profile already exists
-          if (profileErr.code === '23505') {
-            profileInserted = true
-            break
-          }
-          
+          if (!profileErr || profileErr.code === '23505') { profileInserted = true; break }
           lastError = profileErr
-          console.warn(`Profile insert attempt ${attempt} failed:`, profileErr.message)
-          
-          // Wait briefly before retry
           if (attempt < 3) await new Promise(r => setTimeout(r, 1000))
         }
         
-        if (!profileInserted) {
-          throw new Error(`Auth account created (${formData.email}) but profile save failed: ${lastError?.message}. Go to Manage Users and use "Fix Missing Profiles" to repair.`)
-        }
-        
-        setSuccessMsg(`${formData.name} added successfully!`)
-        setTimeout(() => { setModalOpen(false); loadData() }, 1500)
+        if (!profileInserted) throw new Error(`Auth account created but profile save failed: ${lastError?.message}`)
       }
+      
+      // Sync multiple routes
+      if (formData.role === 'salesman') {
+        // Delete old assignments
+        await supabase.from('user_routes').delete().eq('user_id', targetUserId)
+        
+        // Insert new ones
+        if (formData.route_ids.length > 0) {
+          const routeInserts = formData.route_ids.map(rid => ({ user_id: targetUserId, route_id: rid }))
+          await supabase.from('user_routes').insert(routeInserts)
+        }
+      }
+
+      setSuccessMsg(editUser ? 'User updated successfully!' : `${formData.name} added successfully!`)
+      setTimeout(() => { setModalOpen(false); loadData() }, 1000)
+      
     } catch (err) {
       console.error('Save error:', err)
       setError(err.message || 'Operation failed. Please try again.')
     } finally { 
       setSaving(false) 
     }
-  }
-
-  async function assignRoute(userId, routeId) {
-    try {
-      const { error: e2 } = await supabase.from('users').update({ route_id: routeId || null }).eq('id', userId)
-      if (e2) throw e2
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, route_id: routeId || null } : u))
-    } catch (err) { alert('Error assigning route: ' + err.message) }
   }
 
   async function handleDelete(u) {
@@ -172,7 +183,7 @@ export default function ManageUsers() {
                   <th className="text-left px-6 py-4 font-semibold">User Details</th>
                   <th className="text-left px-6 py-4 font-semibold">Phone</th>
                   <th className="text-center px-6 py-4 font-semibold">Role</th>
-                  <th className="text-left px-6 py-4 font-semibold">Assigned Route</th>
+                  <th className="text-left px-6 py-4 font-semibold">Assigned Routes</th>
                   <th className="text-center px-6 py-4 font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -191,11 +202,17 @@ export default function ManageUsers() {
                       {u.role === 'manager' ? (
                         <span className="text-gray-400 italic text-xs">Unrestricted</span>
                       ) : (
-                        <select value={u.route_id || ''} onChange={(e) => assignRoute(u.id, e.target.value)}
-                          className="p-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 max-w-[160px]">
-                          <option value="">-- Unassigned --</option>
-                          {routes.map(r => (<option key={r.id} value={r.id}>{r.name}</option>))}
-                        </select>
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {u.assigned_routes?.length > 0 ? (
+                            u.assigned_routes.map(rid => (
+                              <span key={rid} className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs text-gray-600">
+                                {routes.find(r => r.id === rid)?.name || 'Unknown Route'}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-xs">— Unassigned —</span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -224,17 +241,23 @@ export default function ManageUsers() {
                   </div>
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${u.role === 'manager' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role.toUpperCase()}</span>
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex flex-col gap-2 mt-2">
                   {u.role === 'salesman' ? (
-                    <select value={u.route_id || ''} onChange={(e) => assignRoute(u.id, e.target.value)}
-                      className="p-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 flex-1 mr-2">
-                      <option value="">-- Unassigned --</option>
-                      {routes.map(r => (<option key={r.id} value={r.id}>{r.name}</option>))}
-                    </select>
+                    <div className="flex flex-wrap gap-1">
+                      {u.assigned_routes?.length > 0 ? (
+                        u.assigned_routes.map(rid => (
+                          <span key={rid} className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] text-gray-600">
+                            {routes.find(r => r.id === rid)?.name || 'Unknown'}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 italic text-[10px]">— Unassigned —</span>
+                      )}
+                    </div>
                   ) : (
                     <span className="text-gray-400 italic text-xs">Unrestricted access</span>
                   )}
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 justify-end mt-1">
                     <button onClick={() => openEdit(u)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">✏️</button>
                     {u.id !== currentUser?.id && (
                       <button onClick={() => handleDelete(u)} className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-500">🗑️</button>
@@ -287,14 +310,28 @@ export default function ManageUsers() {
               </select>
             </div>
           </div>
-          <div>
-            <label className="input-label">Assign Route</label>
-            <select value={formData.route_id} onChange={e => setFormData({...formData, route_id: e.target.value})} className="input-field">
-              <option value="">-- No Route --</option>
-              {routes.map(r => (<option key={r.id} value={r.id}>{r.name}</option>))}
-            </select>
-          </div>
-          <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : (editUser ? 'Update User' : 'Create User')}</button>
+          
+          {formData.role === 'salesman' && (
+            <div>
+              <label className="input-label mb-2">Assign Routes (Multiple)</label>
+              <div className="max-h-48 overflow-y-auto bg-gray-50 p-2 rounded-xl border border-gray-200 space-y-1">
+                {routes.map(r => (
+                  <label key={r.id} className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={formData.route_ids.includes(r.id)}
+                      onChange={() => toggleRouteSelection(r.id)}
+                      className="w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">{r.name}</span>
+                  </label>
+                ))}
+                {routes.length === 0 && <p className="text-xs text-gray-500 p-2">No routes available</p>}
+              </div>
+            </div>
+          )}
+          
+          <button type="submit" disabled={saving} className="btn-primary mt-6">{saving ? 'Saving...' : (editUser ? 'Update User' : 'Create User')}</button>
         </form>
       </Modal>
     </div>

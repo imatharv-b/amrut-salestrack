@@ -76,6 +76,21 @@ export default function ManageAttendance() {
     }
   }
 
+  async function handleDeleteRecord(recordId) {
+    if (!confirm('Are you sure you want to mark this person as absent (delete attendance)?')) return
+    setUpdating(recordId)
+    try {
+      const { error } = await supabase.from('attendance').delete().eq('id', recordId)
+      if (error) throw error
+      await loadData()
+    } catch (err) {
+      console.error('Failed to delete attendance:', err)
+      alert('Failed to update: ' + (err.message || 'Unknown error'))
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   // Build display list — show all salesmen merged with their attendance records
   const displayList = salesmen.map(sm => {
     const record = records.find(r => r.salesman_id === sm.id)
@@ -240,9 +255,27 @@ export default function ManageAttendance() {
                           </button>
                         </div>
                       ) : (
-                        <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold ${style.badge}`}>
-                          {style.icon} {style.label}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold ${style.badge}`}>
+                            {style.icon} {style.label}
+                          </span>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => handleUpdateStatus(record.id, 'pending')}
+                              disabled={updating === record.id}
+                              className="px-2 py-1 bg-white text-gray-600 border border-gray-200 text-[10px] font-bold rounded-lg hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                              Reset
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecord(record.id)}
+                              disabled={updating === record.id}
+                              className="px-2 py-1 bg-white text-red-600 border border-red-200 text-[10px] font-bold rounded-lg hover:bg-red-50 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                              Mark Absent
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

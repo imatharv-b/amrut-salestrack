@@ -16,6 +16,7 @@ export default function LogVisit() {
   const [success, setSuccess] = useState(false)
   const [offlineSaved, setOfflineSaved] = useState(false)
   const [gps, setGps] = useState(null)
+  const [dailyRoutes, setDailyRoutes] = useState([])
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
@@ -31,9 +32,13 @@ export default function LogVisit() {
 
   async function loadStores() {
     try {
-      const { data, error } = await supabase.from('stores').select('*, routes(name)').order('name')
-      if (error) throw error
-      setStores(data || [])
+      const [storesRes, dailyRes] = await Promise.all([
+        supabase.from('stores').select('*, routes(name)').order('name'),
+        supabase.from('daily_route_assignments').select('route_id').eq('salesman_id', profile?.id).eq('assigned_date', today)
+      ])
+      if (storesRes.error) throw storesRes.error
+      setStores(storesRes.data || [])
+      setDailyRoutes((dailyRes.data || []).map(d => d.route_id))
     } catch (err) { console.error('Failed to load stores:', err) }
   }
 
@@ -41,7 +46,13 @@ export default function LogVisit() {
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.village?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  ).sort((a, b) => {
+    const aAssigned = dailyRoutes.includes(a.route_id)
+    const bAssigned = dailyRoutes.includes(b.route_id)
+    if (aAssigned && !bAssigned) return -1
+    if (!aAssigned && bAssigned) return 1
+    return 0
+  })
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -101,16 +112,22 @@ export default function LogVisit() {
             <label className="input-label">Select Krishi Kendra / कृषी केंद्र चुनें</label>
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search by name, village, owner..." className="input-field mb-3" />
             <div className="space-y-2 max-h-72 overflow-y-auto">
-              {filteredStores.map(store => (
-                <button key={store.id} type="button" onClick={() => { setSelectedStore(store); setSearchTerm('') }} className="w-full text-left p-3.5 bg-white rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150">
-                  <p className="font-semibold text-sm text-gray-800">🏪 {store.name}</p>
-                  <p className="text-xs text-gray-500">
+              {filteredStores.map(store => {
+                const isAssignedToday = dailyRoutes.includes(store.route_id)
+                return (
+                <button key={store.id} type="button" onClick={() => { setSelectedStore(store); setSearchTerm('') }} className={`w-full text-left p-3.5 bg-white rounded-xl border ${isAssignedToday ? 'border-brand-400 bg-brand-50 shadow-sm' : 'border-gray-200'} hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150`}>
+                  <div className="flex justify-between items-start">
+                    <p className={`font-semibold text-sm ${isAssignedToday ? 'text-brand-800' : 'text-gray-800'}`}>🏪 {store.name}</p>
+                    {isAssignedToday && <span className="text-[10px] bg-brand-600 text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider shadow-sm">Today's Task</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
                     {store.village && `📍 ${store.village}`}
                     {store.contact_person && ` • 👤 ${store.contact_person}`}
                     {store.routes?.name && ` • 🛣️ ${store.routes.name}`}
                   </p>
                 </button>
-              ))}
+                )
+              })}
               {filteredStores.length === 0 && (<p className="text-sm text-gray-400 text-center py-4">No stores found / कोई कृषी केंद्र नहीं मिला</p>)}
             </div>
           </div>

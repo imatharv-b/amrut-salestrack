@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 const managerLinks = [
   { to: '/', label: 'Overview Dashboard', icon: '📊' },
   { to: '/attendance', label: 'Attendance', icon: '📋' },
+  { to: '/daily-assignments', label: 'Daily Assignments', icon: '🎯' },
   { to: '/map', label: 'Live Map', icon: '🗺️' },
   { to: '/ledger', label: 'Collections Ledger', icon: '🧾' },
   { to: '/performance', label: 'Salesman Performance', icon: '👥' },
