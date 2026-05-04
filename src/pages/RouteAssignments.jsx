@@ -163,11 +163,8 @@ export default function RouteAssignments() {
             <EmptyState icon="👥" title="No salesmen found" description="Add salesmen to assign them routes." />
           ) : (
             salesmen.map((sm) => {
-              // Find all potential routes for this salesman from user_routes (or fallback to users.route_id)
-              let smAvailableRoutes = userRoutes.filter(ur => ur.user_id === sm.id).map(ur => ur.route_id)
-              if (sm.route_id && !smAvailableRoutes.includes(sm.route_id)) {
-                smAvailableRoutes.push(sm.route_id)
-              }
+              // Show ALL routes as per user request so manager can assign any route
+              let smAvailableRoutes = routes.map(r => r.id)
               
               const smAssignments = dailyAssignments.filter(da => da.salesman_id === sm.id).map(da => da.route_id)
               
@@ -187,7 +184,7 @@ export default function RouteAssignments() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-800">{sm.name}</p>
-                        <p className="text-xs text-gray-500">{smAvailableRoutes.length} permitted routes</p>
+                        <p className="text-xs text-gray-500">{routes.length} total routes</p>
                       </div>
                     </div>
                     {smAssignments.length > 0 && (

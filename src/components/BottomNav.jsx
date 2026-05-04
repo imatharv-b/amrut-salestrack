@@ -18,6 +18,7 @@ const managerLinks = [
 ]
 
 const extraManagerMenu = [
+  { to: '/daily-assignments', label: 'Daily Assignments', icon: '🎯' },
   { to: '/performance', label: 'Salesman Performance', icon: '👥' },
   { to: '/visit-report', label: 'Visit Report', icon: '📅' },
   { to: '/routes', label: 'Manage Routes', icon: '🛣️' },
