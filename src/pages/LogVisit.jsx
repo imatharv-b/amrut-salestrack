@@ -82,7 +82,9 @@ export default function LogVisit() {
     }
 
     try {
-      const { error: dbError } = await supabase.from('visits').insert(visitPayload)
+      const insertPromise = supabase.from('visits').insert(visitPayload)
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Visit saved offline.')), 10000))
+      const { error: dbError } = await Promise.race([insertPromise, timeoutPromise])
       if (dbError) throw dbError
 
       // Only clear form and show success AFTER confirmed DB insert
