@@ -54,10 +54,15 @@ export default function LogVisit() {
     return 0
   })
 
-  function handleSubmit(e) {
+  const [error, setError] = useState(null)
+
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!selectedStore) return
+    if (!selectedStore || loading) return
     
+    setLoading(true)
+    setError(null)
+
     // 1. Create payload
     const visitPayload = {
       store_id: selectedStore.id, salesman_id: profile?.id,
@@ -66,32 +71,36 @@ export default function LogVisit() {
       follow_up_date: followUpDate || null, follow_up_note: followUpNote || null,
     }
 
-    // 2. Optimistic UI: Clear form and show success immediately
-    setRemarks('')
-    setStockRemaining('')
-    setFollowUpDate('')
-    setFollowUpNote('')
-    setSelectedStore(null)
-    setSearchTerm('')
-
     if (!navigator.onLine) {
       queueOfflineVisit(visitPayload)
+      setRemarks(''); setStockRemaining(''); setFollowUpDate(''); setFollowUpNote('')
+      setSelectedStore(null); setSearchTerm('')
       setOfflineSaved(true)
       setTimeout(() => setOfflineSaved(false), 4000)
-    } else {
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { error: dbError } = await supabase.from('visits').insert(visitPayload)
+      if (dbError) throw dbError
+
+      // Only clear form and show success AFTER confirmed DB insert
+      setRemarks(''); setStockRemaining(''); setFollowUpDate(''); setFollowUpNote('')
+      setSelectedStore(null); setSearchTerm('')
       setSuccess(true)
       setTimeout(() => setSuccess(false), 4000)
-      
-      // 3. Perform DB insert in background (fire-and-forget)
-      supabase.from('visits').insert(visitPayload).then(({ error }) => {
-        if (error) {
-          console.error("DB error, queueing offline:", error)
-          queueOfflineVisit(visitPayload)
-        }
-      }).catch(err => {
-         console.error("Network error, queueing offline:", err)
-         queueOfflineVisit(visitPayload)
-      })
+    } catch (err) {
+      console.error("Visit insert failed:", err)
+      if (err.code === '42501' || err.message?.includes('policy')) {
+        setError('❌ This store is not on your assigned route. Visit could not be saved. (RLS policy error)')
+      } else {
+        setError(`❌ Failed to save visit: ${err.message}`)
+      }
+      // Also queue offline as fallback
+      queueOfflineVisit(visitPayload)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -106,6 +115,7 @@ export default function LogVisit() {
       </div>
       {success && (<div className="mb-4 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-center animate-fade-in-up"><span className="text-2xl block mb-1">✅</span><p className="font-semibold">Visit Recorded!</p><p className="text-xs text-green-500">विजिट सफलतापूर्वक दर्ज हो गई</p></div>)}
       {offlineSaved && (<div className="mb-4 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-center animate-fade-in-up"><span className="text-2xl block mb-1">📶</span><p className="font-semibold">Saved Offline</p><p className="text-xs text-blue-500">Visit recorded locally. Will sync when internet returns.</p></div>)}
+      {error && (<div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-center animate-fade-in-up"><p className="font-semibold text-sm">{error}</p><p className="text-xs text-red-500 mt-1">Queued offline as backup. Contact manager if this persists.</p></div>)}
       <form onSubmit={handleSubmit} className="space-y-5">
         {!selectedStore ? (
           <div className="animate-fade-in-up">
@@ -172,8 +182,13 @@ export default function LogVisit() {
         )}
         {selectedStore && (
           <div className="animate-fade-in-up pt-2">
-            <button type="submit" className="btn-primary text-xl py-5">
-              Visit Done ✓
+            <button type="submit" disabled={loading} className="btn-primary text-xl py-5 disabled:opacity-60 disabled:cursor-not-allowed">
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  Saving...
+                </span>
+              ) : 'Visit Done ✓'}
             </button>
           </div>
         )}
