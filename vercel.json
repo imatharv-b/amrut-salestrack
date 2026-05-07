@@ -2,8 +2,16 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/(login|signup|attendance|daily-assignments|map|ledger|performance|visit-report|routes|stores|users|visit|collect|my-visits|add-store)",
       "destination": "/index.html"
+    },
+    {
+      "source": "/(login|signup|attendance|daily-assignments|map|ledger|performance|visit-report|routes|stores|users|visit|collect|my-visits|add-store)/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://qr-code-abc.vercel.app/$1"
     }
   ],
   "headers": [
