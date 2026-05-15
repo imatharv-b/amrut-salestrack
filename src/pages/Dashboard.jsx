@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import StatCard from '../components/StatCard'
+import Modal from '../components/Modal'
 import { supabase } from '../lib/supabase'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -16,21 +17,35 @@ export default function Dashboard() {
   const [topOverdue, setTopOverdue] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Drill-down state
+  const [selectedSalesman, setSelectedSalesman] = useState(null)
+  const [salesmanModalData, setSalesmanModalData] = useState(null)
+
+  // Raw data refs for drill-down
+  const [rawData, setRawData] = useState({
+    collections: [], stores: [], salesmen: [], attendance: []
+  })
+
   const today = new Date().toISOString().split('T')[0]
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
-  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+  const nowDate = new Date()
+  const firstDayOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).toISOString().split('T')[0]
+  const lastDayOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).toISOString().split('T')[0]
 
   useEffect(() => { loadDashboardData() }, [])
 
   async function loadDashboardData() {
     setLoading(true)
     try {
-      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes] = await Promise.all([
+      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes] = await Promise.all([
         supabase.from('stores').select('id, name, village, route_id'),
         supabase.from('visits').select('id, store_id, salesman_id, visited_date'),
-        supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date'),
+        supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date, payment_mode, remarks'),
         supabase.from('invoices').select('id, store_id, total_amount, invoice_date'),
         supabase.from('users').select('id, name').eq('role', 'salesman'),
+        supabase.from('attendance').select('id, salesman_id, date, status')
+          .gte('date', firstDayOfMonth)
+          .lte('date', lastDayOfMonth),
       ])
 
       const stores = storesRes.data || []
@@ -38,6 +53,10 @@ export default function Dashboard() {
       const collections = collectionsRes.data || []
       const invoices = invoicesRes.data || []
       const salesmen = usersRes.data || []
+      const attendance = attendanceRes.data || []
+
+      // Save raw data for drill-down
+      setRawData({ collections, stores, salesmen, attendance })
 
       // 1. Month collections
       const monthCols = collections.filter(c => c.payment_date >= firstDayOfMonth)
@@ -74,15 +93,17 @@ export default function Dashboard() {
         storesNotVisited30Days: notVisitedCount
       })
 
-      // Salesman chart
+      // Salesman chart - store salesman IDs for click mapping
       const salesmanTotals = {}
+      const salesmanIdMap = {}
       monthCols.forEach(c => {
         const sm = salesmen.find(s => s.id === c.salesman_id)
         const sName = sm?.name || 'Unknown'
         salesmanTotals[sName] = (salesmanTotals[sName] || 0) + Number(c.amount)
+        if (sm) salesmanIdMap[sName] = sm.id
       })
       setSalesmanChartData(Object.keys(salesmanTotals).map(name => ({
-        name, amount: salesmanTotals[name]
+        name, amount: salesmanTotals[name], salesmanId: salesmanIdMap[name] || null
       })))
 
       // Top overdue
@@ -110,6 +131,76 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Handle salesman bar click
+  function handleBarClick(data) {
+    if (!data || !data.salesmanId) return
+    const smId = data.salesmanId
+    const smName = data.name
+
+    // Get this month's collections for this salesman
+    const smCollections = rawData.collections
+      .filter(c => c.salesman_id === smId && c.payment_date >= firstDayOfMonth)
+      .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
+
+    // Map store details
+    const storeCollections = smCollections.map(c => {
+      const store = rawData.stores.find(s => s.id === c.store_id)
+      return {
+        ...c,
+        store_name: store?.name || 'Unknown Store',
+        store_village: store?.village || ''
+      }
+    })
+
+    // Store-wise aggregation
+    const storeAgg = {}
+    smCollections.forEach(c => {
+      if (!storeAgg[c.store_id]) {
+        const store = rawData.stores.find(s => s.id === c.store_id)
+        storeAgg[c.store_id] = {
+          name: store?.name || 'Unknown',
+          village: store?.village || '',
+          total: 0,
+          count: 0
+        }
+      }
+      storeAgg[c.store_id].total += Number(c.amount)
+      storeAgg[c.store_id].count += 1
+    })
+
+    // Attendance for this salesman this month
+    const smAttendance = rawData.attendance.filter(a => a.salesman_id === smId)
+    const presentDays = smAttendance.filter(a => a.status === 'approved').length
+    const pendingDays = smAttendance.filter(a => a.status === 'pending').length
+    const rejectedDays = smAttendance.filter(a => a.status === 'rejected').length
+
+    // Count working days so far this month (exclude Sundays)
+    let workingDays = 0
+    const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1)
+    const todayDate = new Date()
+    for (let d = new Date(monthStart); d <= todayDate; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() !== 0) workingDays++ // exclude Sunday
+    }
+
+    const totalCollected = smCollections.reduce((sum, c) => sum + Number(c.amount), 0)
+
+    setSalesmanModalData({
+      name: smName,
+      salesmanId: smId,
+      collections: storeCollections,
+      storeAgg: Object.values(storeAgg).sort((a, b) => b.total - a.total),
+      totalCollected,
+      storesCollectedFrom: Object.keys(storeAgg).length,
+      attendance: { present: presentDays, pending: pendingDays, rejected: rejectedDays, workingDays }
+    })
+    setSelectedSalesman(smName)
+  }
+
+  function closeModal() {
+    setSelectedSalesman(null)
+    setSalesmanModalData(null)
   }
 
   return (
@@ -141,9 +232,10 @@ export default function Dashboard() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* Salesman Collections Bar Chart */}
+            {/* Salesman Collections Bar Chart — CLICKABLE */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 animate-fade-in-up">
-              <h2 className="font-bold text-gray-800 mb-4">Salesman Collections (This Month)</h2>
+              <h2 className="font-bold text-gray-800 mb-1">Salesman Collections (This Month)</h2>
+              <p className="text-xs text-gray-400 mb-4">👆 Click on a bar to see store-wise breakdown</p>
               <div className="h-64">
                 {salesmanChartData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-gray-400 text-sm">No collections this month</div>
@@ -158,7 +250,21 @@ export default function Dashboard() {
                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         cursor={{ fill: '#f3f4f6' }}
                       />
-                      <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                      <Bar
+                        dataKey="amount"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={60}
+                        onClick={(data) => handleBarClick(data)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {salesmanChartData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={selectedSalesman === entry.name ? '#1e40af' : '#3b82f6'}
+                            className="transition-all duration-200"
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -207,6 +313,114 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      {/* Salesman Drill-Down Modal */}
+      <Modal isOpen={!!selectedSalesman} onClose={closeModal} title={`${selectedSalesman} — Collections Detail`} size="xl">
+        {salesmanModalData && (
+          <div className="space-y-5">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-3 text-center border border-emerald-200">
+                <p className="text-xl font-bold text-emerald-700">₹{salesmanModalData.totalCollected.toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-emerald-600 font-semibold mt-1">Total Collected</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 text-center border border-blue-200">
+                <p className="text-xl font-bold text-blue-700">{salesmanModalData.storesCollectedFrom}</p>
+                <p className="text-[10px] text-blue-600 font-semibold mt-1">Stores Collected</p>
+              </div>
+              <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-3 text-center border border-amber-200">
+                <p className="text-xl font-bold text-amber-700">{salesmanModalData.attendance.present}</p>
+                <p className="text-[10px] text-amber-600 font-semibold mt-1">Days Present</p>
+              </div>
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 text-center border border-gray-200">
+                <p className="text-xl font-bold text-gray-700">
+                  {salesmanModalData.attendance.workingDays > 0
+                    ? Math.round((salesmanModalData.attendance.present / salesmanModalData.attendance.workingDays) * 100)
+                    : 0}%
+                </p>
+                <p className="text-[10px] text-gray-500 font-semibold mt-1">Attendance %</p>
+              </div>
+            </div>
+
+            {/* Store-wise Aggregation */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                Store-wise Collection Summary / दुकान वार वसूली
+              </h4>
+              {salesmanModalData.storeAgg.length === 0 ? (
+                <p className="text-sm text-gray-400 italic py-4 text-center">No collections this month</p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Store</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Village</th>
+                        <th className="text-center px-4 py-2.5 font-semibold text-gray-600">Visits</th>
+                        <th className="text-right px-4 py-2.5 font-semibold text-gray-600">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {salesmanModalData.storeAgg.map((s, i) => (
+                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-2.5 font-medium text-gray-800">{s.name}</td>
+                          <td className="px-4 py-2.5 text-gray-500 text-xs">{s.village}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-700 font-bold text-xs">{s.count}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-bold text-emerald-700">₹{s.total.toLocaleString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Transaction Log */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                All Transactions / सभी लेनदेन
+              </h4>
+              {salesmanModalData.collections.length === 0 ? (
+                <p className="text-sm text-gray-400 italic py-4 text-center">No transactions this month</p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Date</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Store</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Mode</th>
+                        <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Remarks</th>
+                        <th className="text-right px-4 py-2.5 font-semibold text-gray-600">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {salesmanModalData.collections.map(c => (
+                        <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
+                            {new Date(c.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <p className="font-medium text-gray-800 text-xs">{c.store_name}</p>
+                            <p className="text-[10px] text-gray-400">{c.store_village}</p>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span className="px-2 py-0.5 bg-gray-200 rounded text-[10px] font-semibold uppercase">{c.payment_mode || '—'}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-500 text-xs max-w-[120px] truncate">{c.remarks || '—'}</td>
+                          <td className="px-4 py-2.5 text-right font-bold text-emerald-700 whitespace-nowrap">₹{Number(c.amount).toLocaleString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

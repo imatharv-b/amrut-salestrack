@@ -13,6 +13,9 @@ export default function VisitReport() {
   const [stores, setStores] = useState([])
   const [visits, setVisits] = useState([])
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState('calendar') // 'calendar' | 'storeSummary'
+  const [collections, setCollections] = useState([])
+  const [routes, setRoutes] = useState([])
 
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate()
   const monthName = new Date(selectedYear, selectedMonth).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
@@ -45,11 +48,17 @@ export default function VisitReport() {
       const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`
       const endDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${daysInMonth}`
 
-      // Load stores
-      let storesQuery = supabase.from('stores').select('id, name, village, route_id').order('name')
-      const { data: storesData, error: storesErr } = await storesQuery
-      if (storesErr) throw storesErr
-      setStores(storesData || [])
+      // Load stores, routes, collections
+      const [storesRes, routesRes, colsRes] = await Promise.all([
+        supabase.from('stores').select('id, name, village, route_id').order('name'),
+        supabase.from('routes').select('id, name'),
+        supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date')
+          .gte('payment_date', startDate).lte('payment_date', endDate),
+      ])
+      if (storesRes.error) throw storesRes.error
+      setStores(storesRes.data || [])
+      setRoutes(routesRes.data || [])
+      setCollections(colsRes.data || [])
 
       // Load visits for the month
       let visitsQuery = supabase
@@ -157,6 +166,24 @@ export default function VisitReport() {
     setSelectedYear(y)
   }
 
+  // Store summary helpers
+  const getRouteName = (routeId) => routes.find(r => r.id === routeId)?.name || '—'
+  const storeSummaryData = stores.map(store => {
+    const storeVisits = visits.filter(v => v.store_id === store.id)
+    const storeCollections = collections.filter(c => c.store_id === store.id)
+    const totalCol = storeCollections.reduce((sum, c) => sum + Number(c.amount), 0)
+    const lastVisit = storeVisits.length > 0
+      ? storeVisits.sort((a, b) => new Date(b.visited_date) - new Date(a.visited_date))[0].visited_date
+      : null
+    const visitingSalesmen = [...new Set(storeVisits.map(v => v.salesman_id))]
+      .map(id => salesmen.find(s => s.id === id)?.name || '').filter(Boolean)
+    return {
+      ...store, route_name: getRouteName(store.route_id),
+      visitCount: storeVisits.length, totalCollections: totalCol,
+      lastVisited: lastVisit, salesmenNames: visitingSalesmen,
+    }
+  }).sort((a, b) => b.visitCount - a.visitCount)
+
   return (
     <div className="page-container md:pb-6">
       {/* Header */}
@@ -228,19 +255,33 @@ export default function VisitReport() {
         </div>
       </div>
 
+      {/* View Mode Toggle */}
+      <div className="flex bg-gray-100 rounded-xl p-1 mb-5 max-w-sm animate-fade-in-up" style={{ animationDelay: '90ms' }}>
+        <button onClick={() => setViewMode('calendar')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all duration-200 ${
+            viewMode === 'calendar' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          📅 Calendar View
+        </button>
+        <button onClick={() => setViewMode('storeSummary')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all duration-200 ${
+            viewMode === 'storeSummary' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          🏪 Store Summary
+        </button>
+      </div>
+
       {/* The Grid Table */}
-      {loading ? (
+      {viewMode === 'calendar' && loading ? (
         <div className="text-center py-12">
           <div className="w-8 h-8 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto" style={{ borderWidth: '3px' }} />
           <p className="text-sm text-gray-400 mt-3">Loading visits...</p>
         </div>
-      ) : relevantStores.length === 0 ? (
+      ) : viewMode === 'calendar' && relevantStores.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
           <span className="text-4xl block mb-3">📋</span>
           <p className="text-sm text-gray-500">No visits recorded for {monthName}</p>
           <p className="text-xs text-gray-400 mt-1">इस महीने कोई विजिट रिकॉर्ड नहीं</p>
         </div>
-      ) : (
+      ) : viewMode === 'calendar' ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse" style={{ minWidth: `${180 + daysInMonth * 36}px` }}>
@@ -308,19 +349,71 @@ export default function VisitReport() {
             </table>
           </div>
         </div>
+      ) : null}
+
+      {/* Legend for calendar */}
+      {viewMode === 'calendar' && (
+        <div className="flex items-center gap-4 mt-4 text-xs text-gray-500 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-100 text-brand-700 font-bold text-[10px]">✓</span>
+            Visited / विजिट किया
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded bg-red-50 border border-red-200" />
+            Sunday / रविवार
+          </div>
+        </div>
       )}
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 text-xs text-gray-500 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-100 text-brand-700 font-bold text-[10px]">✓</span>
-          Visited / विजिट किया
+      {/* Store Summary View */}
+      {viewMode === 'storeSummary' && !loading && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-800 text-white">
+                <tr>
+                  <th className="text-left px-4 py-3 font-bold">Store Name / दुकान</th>
+                  <th className="text-left px-4 py-3 font-semibold">Village</th>
+                  <th className="text-left px-4 py-3 font-semibold">Route</th>
+                  <th className="text-center px-4 py-3 font-semibold">Visits</th>
+                  <th className="text-left px-4 py-3 font-semibold">Last Visited</th>
+                  <th className="text-left px-4 py-3 font-semibold">Salesman</th>
+                  <th className="text-right px-4 py-3 font-semibold">Collections</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {storeSummaryData.map((s, idx) => (
+                  <tr key={s.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-brand-50/40 transition-colors`}>
+                    <td className="px-4 py-3 font-semibold text-gray-800">
+                      <div className="truncate max-w-[180px]" title={s.name}>{s.name}</div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{s.village || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{s.route_name}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs ${
+                        s.visitCount > 0 ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-400'}`}>
+                        {s.visitCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">
+                      {s.lastVisited ? new Date(s.lastVisited).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{s.salesmenNames.join(', ') || '—'}</td>
+                    <td className="px-4 py-3 text-right font-bold whitespace-nowrap">
+                      <span className={s.totalCollections > 0 ? 'text-emerald-700' : 'text-gray-400'}>
+                        {s.totalCollections > 0 ? `₹${s.totalCollections.toLocaleString('en-IN')}` : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {storeSummaryData.length === 0 && (
+                  <tr><td colSpan="7" className="text-center py-8 text-gray-400">No store data available</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded bg-red-50 border border-red-200" />
-          Sunday / रविवार
-        </div>
-      </div>
+      )}
     </div>
   )
 }
