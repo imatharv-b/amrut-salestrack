@@ -121,6 +121,7 @@ export default function TourPlan() {
     }
   }
 
+  const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
   const activeSalesmanData = salesmen.find(s => s.id === selectedSalesman)
   const activeSalesmanName = activeSalesmanData?.name || 'Select Salesman'
 
