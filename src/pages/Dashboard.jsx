@@ -9,9 +9,7 @@ export default function Dashboard() {
   const { profile } = useAuth()
   const [stats, setStats] = useState({
     monthCollections: 0,
-    totalOutstanding: 0,
-    todayVisits: 0,
-    storesNotVisited30Days: 0
+    todayVisits: 0
   })
   const [salesmanChartData, setSalesmanChartData] = useState([])
   const [topOverdue, setTopOverdue] = useState([])
@@ -40,7 +38,7 @@ export default function Dashboard() {
     try {
       const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes, assignmentsRes] = await Promise.all([
         supabase.from('stores').select('id, name, village, route_id'),
-        supabase.from('visits').select('id, store_id, salesman_id, visited_date'),
+        supabase.from('visits').select('id, store_id, salesman_id, visited_date').eq('visited_date', today),
         supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date, payment_mode, remarks'),
         supabase.from('invoices').select('id, store_id, total_amount, invoice_date'),
         supabase.from('users').select('id, name').eq('role', 'salesman'),
@@ -76,26 +74,11 @@ export default function Dashboard() {
       })
 
       // 3. Visits today
-      const visitsToday = visits.filter(v => v.visited_date === today).length
-
-      // 4. Stores not visited in 30+ days
-      const storeVisitDates = {}
-      visits.forEach(v => {
-        if (!storeVisitDates[v.store_id] || v.visited_date > storeVisitDates[v.store_id]) {
-          storeVisitDates[v.store_id] = v.visited_date
-        }
-      })
-      let notVisitedCount = 0
-      stores.forEach(s => {
-        const lastVisit = storeVisitDates[s.id]
-        if (!lastVisit || lastVisit < thirtyDaysAgo) notVisitedCount++
-      })
+      const visitsToday = visits.length
 
       setStats({
         monthCollections: monthTotal,
-        totalOutstanding: Math.max(0, totalOutstanding),
-        todayVisits: visitsToday,
-        storesNotVisited30Days: notVisitedCount
+        todayVisits: visitsToday
       })
 
       // Salesman chart - store salesman IDs for click mapping
@@ -248,19 +231,59 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* 4 Metric Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
+          {/* Metric Cards */}
+          <div className="grid grid-cols-2 gap-4 mb-6 stagger-children">
             <div className="animate-fade-in-up">
               <StatCard icon="💰" label="Month Collections" value={`₹${stats.monthCollections.toLocaleString('en-IN')}`} color="amber" />
             </div>
             <div className="animate-fade-in-up">
-              <StatCard icon="📉" label="Total Outstanding" value={`₹${stats.totalOutstanding.toLocaleString('en-IN')}`} color="red" />
-            </div>
-            <div className="animate-fade-in-up">
               <StatCard icon="🏃‍♂️" label="Visits Today" value={stats.todayVisits} color="brand" />
             </div>
-            <div className="animate-fade-in-up">
-              <StatCard icon="⚠️" label="30+ Days Unvisited" value={stats.storesNotVisited30Days} color="red" />
+          </div>
+
+          {/* Daily Route Coverage - UTMOST PRIORITY */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up mb-6">
+            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="font-bold text-gray-800 text-lg">Today's Route Coverage</h2>
+              <span className="text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Today</span>
+            </div>
+            <div className="p-5">
+              {dailyCoverage.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-3xl mb-2">🤷‍♂️</p>
+                  <p className="text-sm text-gray-400">No routes assigned today.</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {dailyCoverage.map(sm => (
+                    <div key={sm.id} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-base font-bold text-gray-800 flex items-center gap-2">
+                            {sm.name}
+                            {sm.attendanceStatus === 'approved' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Present</span>}
+                            {sm.attendanceStatus === 'pending' && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>}
+                            {sm.attendanceStatus === 'not marked' && <span className="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold uppercase">No Auth</span>}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1 truncate" title={sm.routesNames}>
+                            🛣️ {sm.routesNames}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-black text-brand-600">{sm.coveragePercent}%</p>
+                        </div>
+                      </div>
+                      <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2 mt-3">
+                        <div className={`h-full rounded-full transition-all duration-500 ${sm.coveragePercent === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${sm.coveragePercent}%` }} />
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-bold mt-2">
+                        <span className="text-brand-600">{sm.visitedStores} visited</span>
+                        <span className="text-gray-400">{sm.targetStores - sm.visitedStores} remaining</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -304,52 +327,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Daily Route Coverage */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up">
-              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="font-bold text-gray-800">Today's Route Coverage</h2>
-                <span className="text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Today</span>
-              </div>
-              <div className="p-5">
-                {dailyCoverage.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-3xl mb-2">🤷‍♂️</p>
-                    <p className="text-sm text-gray-400">No routes assigned today.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {dailyCoverage.map(sm => (
-                      <div key={sm.id} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="text-base font-bold text-gray-800 flex items-center gap-2">
-                              {sm.name}
-                              {sm.attendanceStatus === 'approved' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Present</span>}
-                              {sm.attendanceStatus === 'pending' && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>}
-                              {sm.attendanceStatus === 'not marked' && <span className="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold uppercase">No Auth</span>}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1 max-w-[200px] truncate" title={sm.routesNames}>
-                              🛣️ {sm.routesNames}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-black text-brand-600">{sm.coveragePercent}%</p>
-                          </div>
-                        </div>
-                        <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden mb-2">
-                          <div className={`h-full rounded-full transition-all duration-500 ${sm.coveragePercent === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${sm.coveragePercent}%` }} />
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                          <span className="text-brand-600">{sm.visitedStores} visited</span>
-                          <span className="text-gray-400">{sm.targetStores - sm.visitedStores} remaining</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            
+
             {/* Top 10 Overdue Dealers */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up md:col-span-2">
               <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
