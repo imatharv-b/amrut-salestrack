@@ -120,15 +120,7 @@ export default function Dashboard() {
       // Daily Coverage
       const salesmanCoverage = []
       salesmen.forEach(sm => {
-        let routesAssignedIds = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
-        
-        // Fallback to default user routes if no explicit daily assignment
-        if (routesAssignedIds.length === 0) {
-          routesAssignedIds = userRoutes.filter(ur => ur.user_id === sm.id).map(ur => ur.route_id)
-          if (sm.route_id && !routesAssignedIds.includes(sm.route_id)) {
-            routesAssignedIds.push(sm.route_id)
-          }
-        }
+        const routesAssignedIds = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
 
         if (routesAssignedIds.length > 0) {
           const targetStores = stores.filter(s => routesAssignedIds.includes(s.route_id))
@@ -270,14 +262,14 @@ export default function Dashboard() {
                     <div key={sm.id} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="text-base font-bold text-gray-800 flex items-center gap-2">
+                          <p className="text-base font-bold text-gray-800 flex items-center flex-wrap gap-2">
                             {sm.name}
                             {sm.attendanceStatus === 'approved' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Present</span>}
                             {sm.attendanceStatus === 'pending' && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>}
                             {sm.attendanceStatus === 'not marked' && <span className="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold uppercase">No Auth</span>}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1 truncate" title={sm.routesNames}>
-                            🛣️ {sm.routesNames}
+                          <p className="text-xs text-gray-600 mt-1 truncate font-medium" title={sm.routesNames}>
+                            📍 {sm.routesNames}
                           </p>
                         </div>
                         <div className="text-right">
