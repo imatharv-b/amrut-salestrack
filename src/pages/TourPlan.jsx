@@ -13,6 +13,7 @@ export default function TourPlan() {
   const [selectedSalesman, setSelectedSalesman] = useState(null)
   
   const [routes, setRoutes] = useState([])
+  const [userRoutes, setUserRoutes] = useState([])
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -32,13 +33,15 @@ export default function TourPlan() {
 
   async function loadInitial() {
     try {
-      const [uRes, rRes] = await Promise.all([
+      const [uRes, rRes, urRes] = await Promise.all([
         supabase.from('users').select('*').eq('role', 'salesman').order('name'),
-        supabase.from('routes').select('*').order('name')
+        supabase.from('routes').select('*').order('name'),
+        supabase.from('user_routes').select('*')
       ])
       const sm = uRes.data || []
       setSalesmen(sm)
       setRoutes(rRes.data || [])
+      setUserRoutes(urRes.data || [])
       if (sm.length > 0) setSelectedSalesman(sm[0].id)
     } catch (err) {
       console.error(err)
@@ -118,8 +121,15 @@ export default function TourPlan() {
     }
   }
 
-  const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
-  const activeSalesmanName = salesmen.find(s => s.id === selectedSalesman)?.name || 'Select Salesman'
+  const activeSalesmanData = salesmen.find(s => s.id === selectedSalesman)
+  const activeSalesmanName = activeSalesmanData?.name || 'Select Salesman'
+
+  // Filter routes to only those assigned to this salesman in their profile
+  const assignedRouteIds = userRoutes.filter(ur => ur.user_id === selectedSalesman).map(ur => ur.route_id)
+  if (activeSalesmanData?.route_id && !assignedRouteIds.includes(activeSalesmanData.route_id)) {
+    assignedRouteIds.push(activeSalesmanData.route_id)
+  }
+  const salesmanAvailableRoutes = routes.filter(r => assignedRouteIds.includes(r.id))
 
   return (
     <div className="page-container md:pb-6">
@@ -232,7 +242,7 @@ export default function TourPlan() {
         <p className="text-sm text-gray-500 mb-4">Assign routes to <strong>{activeSalesmanName}</strong> for this date.</p>
         
         <div className="max-h-64 overflow-y-auto space-y-2 mb-6">
-          {routes.map(r => {
+          {salesmanAvailableRoutes.map(r => {
             const isSelected = activeDateRoutes.includes(r.id)
             return (
               <label key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'bg-brand-50 border-brand-300 ring-1 ring-brand-300' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
@@ -246,7 +256,7 @@ export default function TourPlan() {
               </label>
             )
           })}
-          {routes.length === 0 && <p className="text-sm text-gray-500 text-center">No routes available.</p>}
+          {salesmanAvailableRoutes.length === 0 && <p className="text-sm text-gray-500 text-center">No routes available for this salesman. Assign them in Manage Users.</p>}
         </div>
 
         <button 
