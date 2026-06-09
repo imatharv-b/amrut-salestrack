@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import Modal from '../components/Modal'
 import * as XLSX from 'xlsx'
 
 export default function VisitReport() {
@@ -16,6 +17,11 @@ export default function VisitReport() {
   const [viewMode, setViewMode] = useState('calendar') // 'calendar' | 'storeSummary'
   const [collections, setCollections] = useState([])
   const [routes, setRoutes] = useState([])
+  
+  // New features state
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [remarkModal, setRemarkModal] = useState({ isOpen: false, storeName: '', date: '', remark: '' })
 
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate()
   const monthName = new Date(selectedYear, selectedMonth).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
@@ -84,6 +90,13 @@ export default function VisitReport() {
   // Build the grid: only stores that have at least one visit (or all stores)
   const visitedStoreIds = [...new Set(visits.map(v => v.store_id))]
   const relevantStores = stores.filter(s => visitedStoreIds.includes(s.id))
+
+  // Apply Search and Sort
+  let filteredStores = relevantStores.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  filteredStores.sort((a, b) => {
+    if (sortOrder === 'asc') return a.name.localeCompare(b.name)
+    return b.name.localeCompare(a.name)
+  })
 
   // For each store, build a day-map
   function getVisitForDay(storeId, day) {
@@ -224,6 +237,23 @@ export default function VisitReport() {
           ))}
         </select>
 
+        {/* Search & Sort */}
+        <div className="flex items-center gap-2">
+          <input 
+            type="text" 
+            placeholder="Search stores..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="input-field max-w-[180px] py-2 text-sm"
+          />
+          <button 
+            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all shadow-sm whitespace-nowrap"
+          >
+            Sort {sortOrder === 'asc' ? 'A-Z ↓' : 'Z-A ↑'}
+          </button>
+        </div>
+
         {/* Download Button */}
         <button
           onClick={downloadExcel}
@@ -275,11 +305,10 @@ export default function VisitReport() {
           <div className="w-8 h-8 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto" style={{ borderWidth: '3px' }} />
           <p className="text-sm text-gray-400 mt-3">Loading visits...</p>
         </div>
-      ) : viewMode === 'calendar' && relevantStores.length === 0 ? (
+      ) : viewMode === 'calendar' && filteredStores.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
           <span className="text-4xl block mb-3">📋</span>
-          <p className="text-sm text-gray-500">No visits recorded for {monthName}</p>
-          <p className="text-xs text-gray-400 mt-1">इस महीने कोई विजिट रिकॉर्ड नहीं</p>
+          <p className="text-sm text-gray-500">No visits match your search criteria</p>
         </div>
       ) : viewMode === 'calendar' ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
@@ -303,7 +332,7 @@ export default function VisitReport() {
                 </tr>
               </thead>
               <tbody>
-                {relevantStores.map((store, idx) => (
+                {filteredStores.map((store, idx) => (
                   <tr key={store.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-brand-50/40 transition-colors`}>
                     <td className="px-3 py-2.5 font-semibold text-gray-800 sticky left-0 bg-inherit z-10 border-r border-gray-100">
                       <div className="truncate max-w-[150px]" title={store.name}>{store.name}</div>
@@ -315,10 +344,18 @@ export default function VisitReport() {
                         <td key={day} className={`text-center py-2 border-r border-gray-50 
                           ${isSunday(day) ? 'bg-red-50' : ''}`}>
                           {visit ? (
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-700 font-bold" 
-                              title={visit.remarks || 'Visited'}>
+                            <button
+                              onClick={() => setRemarkModal({
+                                isOpen: true,
+                                storeName: store.name,
+                                date: new Date(visit.visited_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+                                remark: visit.remarks || 'No specific remarks added.'
+                              })}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-700 font-bold hover:bg-brand-200 hover:scale-110 transition-all cursor-pointer" 
+                              title="Click to view remark"
+                            >
                               ✓
-                            </span>
+                            </button>
                           ) : null}
                         </td>
                       )
@@ -414,6 +451,17 @@ export default function VisitReport() {
           </div>
         </div>
       )}
+
+      {/* Remark Modal */}
+      <Modal isOpen={remarkModal.isOpen} onClose={() => setRemarkModal({ ...remarkModal, isOpen: false })} title="Visit Details" size="sm">
+        <div className="mb-4">
+          <p className="text-sm font-bold text-gray-800">{remarkModal.storeName}</p>
+          <p className="text-xs text-gray-500">{remarkModal.date}</p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{remarkModal.remark}</p>
+        </div>
+      </Modal>
     </div>
   )
 }
