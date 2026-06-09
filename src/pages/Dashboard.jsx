@@ -47,7 +47,8 @@ export default function Dashboard() {
         supabase.from('attendance').select('id, salesman_id, date, status')
           .gte('date', firstDayOfMonth)
           .lte('date', lastDayOfMonth),
-        supabase.from('daily_route_assignments').select('*').eq('assigned_date', today)
+        supabase.from('daily_route_assignments').select('*').eq('assigned_date', today),
+        supabase.from('routes').select('id, name')
       ])
 
       const stores = storesRes.data || []
@@ -57,6 +58,7 @@ export default function Dashboard() {
       const salesmen = usersRes.data || []
       const attendance = attendanceRes.data || []
       const assignmentsToday = assignmentsRes.data || []
+      const allRoutes = routesRes.data || []
 
       // Save raw data for drill-down
       setRawData({ collections, stores, salesmen, attendance })
@@ -133,18 +135,24 @@ export default function Dashboard() {
       // Daily Coverage
       const salesmanCoverage = []
       salesmen.forEach(sm => {
-        const routesAssigned = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
-        if (routesAssigned.length > 0) {
-          const targetStores = stores.filter(s => routesAssigned.includes(s.route_id))
+        const routesAssignedIds = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
+        if (routesAssignedIds.length > 0) {
+          const targetStores = stores.filter(s => routesAssignedIds.includes(s.route_id))
           const visitedStoreIds = new Set(visits.filter(v => v.visited_date === today && v.salesman_id === sm.id).map(v => v.store_id))
           const targetVisitedCount = targetStores.filter(s => visitedStoreIds.has(s.id)).length
           const coveragePercent = targetStores.length > 0 ? Math.round((targetVisitedCount / targetStores.length) * 100) : 0
+          
+          const smRoutesNames = allRoutes.filter(r => routesAssignedIds.includes(r.id)).map(r => r.name).join(', ')
+          const todayAttendance = attendance.find(a => a.salesman_id === sm.id && a.date === today)?.status || 'not marked'
+
           salesmanCoverage.push({
             id: sm.id,
             name: sm.name,
             targetStores: targetStores.length,
             visitedStores: targetVisitedCount,
-            coveragePercent
+            coveragePercent,
+            routesNames: smRoutesNames,
+            attendanceStatus: todayAttendance
           })
         }
       })
@@ -296,14 +304,61 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Top 10 Overdue Dealers */}
+            {/* Daily Route Coverage */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h2 className="font-bold text-gray-800">Top 10 Overdue Krishi Kendras</h2>
+              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h2 className="font-bold text-gray-800">Today's Route Coverage</h2>
+                <span className="text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Today</span>
+              </div>
+              <div className="p-5">
+                {dailyCoverage.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-3xl mb-2">🤷‍♂️</p>
+                    <p className="text-sm text-gray-400">No routes assigned today.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {dailyCoverage.map(sm => (
+                      <div key={sm.id} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="text-base font-bold text-gray-800 flex items-center gap-2">
+                              {sm.name}
+                              {sm.attendanceStatus === 'approved' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Present</span>}
+                              {sm.attendanceStatus === 'pending' && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>}
+                              {sm.attendanceStatus === 'not marked' && <span className="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold uppercase">No Auth</span>}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1 max-w-[200px] truncate" title={sm.routesNames}>
+                              🛣️ {sm.routesNames}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-black text-brand-600">{sm.coveragePercent}%</p>
+                          </div>
+                        </div>
+                        <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden mb-2">
+                          <div className={`h-full rounded-full transition-all duration-500 ${sm.coveragePercent === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${sm.coveragePercent}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-brand-600">{sm.visitedStores} visited</span>
+                          <span className="text-gray-400">{sm.targetStores - sm.visitedStores} remaining</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Top 10 Overdue Dealers */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up md:col-span-2">
+              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h2 className="font-bold text-gray-800">Top Overdue Krishi Kendras</h2>
+                <span className="text-xs text-gray-400 font-medium">Top 10 highest outstanding</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-500">
+                  <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
                     <tr>
                       <th className="text-left px-5 py-3 font-semibold">Kendra Name</th>
                       <th className="text-left px-5 py-3 font-semibold">Village</th>
@@ -333,34 +388,6 @@ export default function Dashboard() {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </div>
-
-            {/* Daily Route Coverage */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up">
-              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="font-bold text-gray-800">Today's Route Coverage</h2>
-                <span className="text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Today</span>
-              </div>
-              <div className="p-5">
-                {dailyCoverage.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">No routes assigned today.</p>
-                ) : (
-                  <div className="space-y-5">
-                    {dailyCoverage.map(sm => (
-                      <div key={sm.id}>
-                        <div className="flex justify-between items-end mb-1.5">
-                          <p className="text-sm font-bold text-gray-800">{sm.name}</p>
-                          <p className="text-xs font-bold text-brand-600">{sm.coveragePercent}%</p>
-                        </div>
-                        <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${sm.coveragePercent === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${sm.coveragePercent}%` }} />
-                        </div>
-                        <p className="text-[10px] text-gray-500 mt-1.5 font-medium">{sm.visitedStores} of {sm.targetStores} assigned stores visited</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
