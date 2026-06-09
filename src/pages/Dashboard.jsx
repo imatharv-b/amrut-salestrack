@@ -15,6 +15,7 @@ export default function Dashboard() {
   })
   const [salesmanChartData, setSalesmanChartData] = useState([])
   const [topOverdue, setTopOverdue] = useState([])
+  const [dailyCoverage, setDailyCoverage] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Drill-down state
@@ -37,7 +38,7 @@ export default function Dashboard() {
   async function loadDashboardData() {
     setLoading(true)
     try {
-      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes] = await Promise.all([
+      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes, assignmentsRes] = await Promise.all([
         supabase.from('stores').select('id, name, village, route_id'),
         supabase.from('visits').select('id, store_id, salesman_id, visited_date'),
         supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date, payment_mode, remarks'),
@@ -46,6 +47,7 @@ export default function Dashboard() {
         supabase.from('attendance').select('id, salesman_id, date, status')
           .gte('date', firstDayOfMonth)
           .lte('date', lastDayOfMonth),
+        supabase.from('daily_route_assignments').select('*').eq('assigned_date', today)
       ])
 
       const stores = storesRes.data || []
@@ -54,6 +56,7 @@ export default function Dashboard() {
       const invoices = invoicesRes.data || []
       const salesmen = usersRes.data || []
       const attendance = attendanceRes.data || []
+      const assignmentsToday = assignmentsRes.data || []
 
       // Save raw data for drill-down
       setRawData({ collections, stores, salesmen, attendance })
@@ -126,6 +129,28 @@ export default function Dashboard() {
         .slice(0, 10)
 
       setTopOverdue(overdueList)
+
+      // Daily Coverage
+      const salesmanCoverage = []
+      salesmen.forEach(sm => {
+        const routesAssigned = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
+        if (routesAssigned.length > 0) {
+          const targetStores = stores.filter(s => routesAssigned.includes(s.route_id))
+          const visitedStoreIds = new Set(visits.filter(v => v.visited_date === today && v.salesman_id === sm.id).map(v => v.store_id))
+          const targetVisitedCount = targetStores.filter(s => visitedStoreIds.has(s.id)).length
+          const coveragePercent = targetStores.length > 0 ? Math.round((targetVisitedCount / targetStores.length) * 100) : 0
+          salesmanCoverage.push({
+            id: sm.id,
+            name: sm.name,
+            targetStores: targetStores.length,
+            visitedStores: targetVisitedCount,
+            coveragePercent
+          })
+        }
+      })
+      salesmanCoverage.sort((a, b) => b.coveragePercent - a.coveragePercent)
+      setDailyCoverage(salesmanCoverage)
+
     } catch (err) {
       console.error('Dashboard load error:', err)
     } finally {
@@ -308,6 +333,34 @@ export default function Dashboard() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            {/* Daily Route Coverage */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up">
+              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h2 className="font-bold text-gray-800">Today's Route Coverage</h2>
+                <span className="text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Today</span>
+              </div>
+              <div className="p-5">
+                {dailyCoverage.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No routes assigned today.</p>
+                ) : (
+                  <div className="space-y-5">
+                    {dailyCoverage.map(sm => (
+                      <div key={sm.id}>
+                        <div className="flex justify-between items-end mb-1.5">
+                          <p className="text-sm font-bold text-gray-800">{sm.name}</p>
+                          <p className="text-xs font-bold text-brand-600">{sm.coveragePercent}%</p>
+                        </div>
+                        <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${sm.coveragePercent === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`} style={{ width: `${sm.coveragePercent}%` }} />
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1.5 font-medium">{sm.visitedStores} of {sm.targetStores} assigned stores visited</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
