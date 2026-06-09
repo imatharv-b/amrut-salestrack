@@ -16,11 +16,8 @@ export default function LogVisit() {
   const [success, setSuccess] = useState(false)
   const [offlineSaved, setOfflineSaved] = useState(false)
   const [gps, setGps] = useState(null)
-  const [tourPlanRoutes, setTourPlanRoutes] = useState([])
-  const todayDate = new Date()
-  const today = todayDate.toISOString().split('T')[0]
-  const currentMonth = todayDate.getMonth() + 1
-  const currentYear = todayDate.getFullYear()
+  const [dailyRoutes, setDailyRoutes] = useState([])
+  const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     loadStores()
@@ -35,16 +32,13 @@ export default function LogVisit() {
 
   async function loadStores() {
     try {
-      const [storesRes, tpRes] = await Promise.all([
+      const [storesRes, dailyRes] = await Promise.all([
         supabase.from('stores').select('*, routes(name)').order('name'),
-        supabase.from('monthly_tour_plans').select('route_id')
-          .eq('salesman_id', profile?.id)
-          .eq('plan_month', currentMonth)
-          .eq('plan_year', currentYear)
+        supabase.from('daily_route_assignments').select('route_id').eq('salesman_id', profile?.id).eq('assigned_date', today)
       ])
       if (storesRes.error) throw storesRes.error
       setStores(storesRes.data || [])
-      setTourPlanRoutes((tpRes.data || []).map(tp => tp.route_id))
+      setDailyRoutes((dailyRes.data || []).map(d => d.route_id))
     } catch (err) { console.error('Failed to load stores:', err) }
   }
 
@@ -53,8 +47,8 @@ export default function LogVisit() {
     s.village?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => {
-    const aAssigned = tourPlanRoutes.includes(a.route_id)
-    const bAssigned = tourPlanRoutes.includes(b.route_id)
+    const aAssigned = dailyRoutes.includes(a.route_id)
+    const bAssigned = dailyRoutes.includes(b.route_id)
     if (aAssigned && !bAssigned) return -1
     if (!aAssigned && bAssigned) return 1
     return 0
@@ -131,12 +125,12 @@ export default function LogVisit() {
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search by name, village, owner..." className="input-field mb-3" />
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {filteredStores.map(store => {
-                const isAssignedPlan = tourPlanRoutes.includes(store.route_id)
+                const isAssignedToday = dailyRoutes.includes(store.route_id)
                 return (
-                <button key={store.id} type="button" onClick={() => { setSelectedStore(store); setSearchTerm('') }} className={`w-full text-left p-3.5 bg-white rounded-xl border ${isAssignedPlan ? 'border-brand-400 bg-brand-50 shadow-sm' : 'border-gray-200'} hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150`}>
+                <button key={store.id} type="button" onClick={() => { setSelectedStore(store); setSearchTerm('') }} className={`w-full text-left p-3.5 bg-white rounded-xl border ${isAssignedToday ? 'border-brand-400 bg-brand-50 shadow-sm' : 'border-gray-200'} hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] transition-all duration-150`}>
                   <div className="flex justify-between items-start">
-                    <p className={`font-semibold text-sm ${isAssignedPlan ? 'text-brand-800' : 'text-gray-800'}`}>🏪 {store.name}</p>
-                    {isAssignedPlan && <span className="text-[10px] bg-brand-600 text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider shadow-sm">Monthly Tour</span>}
+                    <p className={`font-semibold text-sm ${isAssignedToday ? 'text-brand-800' : 'text-gray-800'}`}>🏪 {store.name}</p>
+                    {isAssignedToday && <span className="text-[10px] bg-brand-600 text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider shadow-sm">Today's Task</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {store.village && `📍 ${store.village}`}

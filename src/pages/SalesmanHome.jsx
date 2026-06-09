@@ -8,12 +8,10 @@ export default function SalesmanHome() {
   const { profile, signOut } = useAuth()
   const [todayVisits, setTodayVisits] = useState([])
   const [todayCollections, setTodayCollections] = useState([])
-  const [tourPlans, setTourPlans] = useState([])
+  const [dailyRoutes, setDailyRoutes] = useState([])
+  const [assignedStores, setAssignedStores] = useState([])
   const [loading, setLoading] = useState(true)
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
-  const currentMonth = today.getMonth() + 1
-  const currentYear = today.getFullYear()
+  const today = new Date().toISOString().split('T')[0]
 
   function getGreeting() {
     const hour = new Date().getHours()
@@ -26,14 +24,21 @@ export default function SalesmanHome() {
 
   async function loadData() {
     try {
-      const [vRes, cRes, tpRes] = await Promise.all([
-        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', todayStr),
-        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', todayStr),
-        supabase.from('monthly_tour_plans').select('*, routes(name)').eq('salesman_id', profile?.id).eq('plan_month', currentMonth).eq('plan_year', currentYear)
+      const [vRes, cRes, dailyRes] = await Promise.all([
+        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
+        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
+        supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today)
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])
-      setTourPlans(tpRes.data || [])
+      const routes = dailyRes.data || []
+      setDailyRoutes(routes)
+
+      if (routes.length > 0) {
+        const routeIds = routes.map(r => r.route_id)
+        const { data: storeData } = await supabase.from('stores').select('id, name, village, route_id').in('route_id', routeIds).order('name')
+        setAssignedStores(storeData || [])
+      }
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }
 
@@ -53,12 +58,40 @@ export default function SalesmanHome() {
         </button>
       </div>
 
-      {tourPlans.length > 0 && (
-        <div className="mb-6 animate-fade-in-up bg-brand-50 border border-brand-200 rounded-xl p-4 shadow-sm flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center shrink-0 text-xl">🎯</div>
-          <div>
-            <h3 className="font-bold text-brand-800 text-sm">This Month's Tour Plan</h3>
-            <p className="text-xs text-brand-600 mt-0.5 font-medium">Please focus on visiting: {tourPlans.map(tp => tp.routes?.name).join(', ')}</p>
+      {dailyRoutes.length > 0 && (
+        <div className="mb-6 animate-fade-in-up bg-brand-50 border border-brand-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center shrink-0 text-xl">🎯</div>
+            <div>
+              <h3 className="font-bold text-brand-800 text-sm">Today's Assigned Route</h3>
+              <p className="text-xs text-brand-600 mt-0.5 font-medium">{dailyRoutes.map(d => d.routes?.name).join(', ')}</p>
+            </div>
+          </div>
+          
+          <div className="mt-3 bg-white rounded-lg border border-brand-100 overflow-hidden">
+            <div className="bg-brand-100/50 px-3 py-2 border-b border-brand-100 flex justify-between items-center">
+              <p className="text-xs font-bold text-brand-800">Target Stores for Today</p>
+              <span className="text-[10px] bg-brand-200 text-brand-800 px-2 py-0.5 rounded font-bold">{assignedStores.length} Stores</span>
+            </div>
+            <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
+              {assignedStores.length === 0 ? (
+                <p className="text-xs text-gray-500 p-3 text-center">No stores found in this route.</p>
+              ) : (
+                assignedStores.map(store => (
+                  <div key={store.id} className="p-2.5 flex justify-between items-center hover:bg-gray-50 transition-colors">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{store.name}</p>
+                      <p className="text-[10px] text-gray-500">{store.village || 'No village specified'}</p>
+                    </div>
+                    {todayVisits.some(v => v.store_id === store.id) ? (
+                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-md font-bold">✓ Visited</span>
+                    ) : (
+                      <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-md font-medium">Pending</span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
