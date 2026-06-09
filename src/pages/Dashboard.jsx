@@ -25,9 +25,9 @@ export default function Dashboard() {
     collections: [], stores: [], salesmen: [], attendance: []
   })
 
-  const today = new Date().toISOString().split('T')[0]
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
   const nowDate = new Date()
+  const today = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
   const firstDayOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).toISOString().split('T')[0]
   const lastDayOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).toISOString().split('T')[0]
 
@@ -36,17 +36,18 @@ export default function Dashboard() {
   async function loadDashboardData() {
     setLoading(true)
     try {
-      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes, assignmentsRes] = await Promise.all([
+      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes, assignmentsRes, routesRes, userRoutesRes] = await Promise.all([
         supabase.from('stores').select('id, name, village, route_id'),
         supabase.from('visits').select('id, store_id, salesman_id, visited_date').eq('visited_date', today),
         supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date, payment_mode, remarks'),
         supabase.from('invoices').select('id, store_id, total_amount, invoice_date'),
-        supabase.from('users').select('id, name').eq('role', 'salesman'),
+        supabase.from('users').select('id, name, route_id').eq('role', 'salesman'),
         supabase.from('attendance').select('id, salesman_id, date, status')
           .gte('date', firstDayOfMonth)
           .lte('date', lastDayOfMonth),
         supabase.from('daily_route_assignments').select('*').eq('assigned_date', today),
-        supabase.from('routes').select('id, name')
+        supabase.from('routes').select('id, name'),
+        supabase.from('user_routes').select('*')
       ])
 
       const stores = storesRes.data || []
@@ -57,6 +58,7 @@ export default function Dashboard() {
       const attendance = attendanceRes.data || []
       const assignmentsToday = assignmentsRes.data || []
       const allRoutes = routesRes.data || []
+      const userRoutes = userRoutesRes.data || []
 
       // Save raw data for drill-down
       setRawData({ collections, stores, salesmen, attendance })
@@ -118,7 +120,16 @@ export default function Dashboard() {
       // Daily Coverage
       const salesmanCoverage = []
       salesmen.forEach(sm => {
-        const routesAssignedIds = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
+        let routesAssignedIds = assignmentsToday.filter(a => a.salesman_id === sm.id).map(a => a.route_id)
+        
+        // Fallback to default user routes if no explicit daily assignment
+        if (routesAssignedIds.length === 0) {
+          routesAssignedIds = userRoutes.filter(ur => ur.user_id === sm.id).map(ur => ur.route_id)
+          if (sm.route_id && !routesAssignedIds.includes(sm.route_id)) {
+            routesAssignedIds.push(sm.route_id)
+          }
+        }
+
         if (routesAssignedIds.length > 0) {
           const targetStores = stores.filter(s => routesAssignedIds.includes(s.route_id))
           const visitedStoreIds = new Set(visits.filter(v => v.visited_date === today && v.salesman_id === sm.id).map(v => v.store_id))

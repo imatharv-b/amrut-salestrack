@@ -17,7 +17,8 @@ export default function LogVisit() {
   const [offlineSaved, setOfflineSaved] = useState(false)
   const [gps, setGps] = useState(null)
   const [dailyRoutes, setDailyRoutes] = useState([])
-  const today = new Date().toISOString().split('T')[0]
+  const todayObj = new Date()
+  const today = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`
 
   useEffect(() => {
     loadStores()
