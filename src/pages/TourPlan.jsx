@@ -4,81 +4,92 @@ import { useAuth } from '../contexts/AuthContext'
 import StatCard from '../components/StatCard'
 import EmptyState from '../components/EmptyState'
 
-export default function RouteAssignments() {
+export default function TourPlan() {
   const { profile } = useAuth()
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const today = new Date()
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear())
   const [salesmen, setSalesmen] = useState([])
   const [routes, setRoutes] = useState([])
-  const [userRoutes, setUserRoutes] = useState([])
-  const [dailyAssignments, setDailyAssignments] = useState([])
+  const [tourPlans, setTourPlans] = useState([])
   const [stores, setStores] = useState([])
   const [visits, setVisits] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(null) // ID of salesman being updated
 
-  const today = new Date().toISOString().split('T')[0]
-
-  useEffect(() => { loadData() }, [selectedDate])
+  useEffect(() => { loadData() }, [selectedMonth, selectedYear])
 
   async function loadData() {
     setLoading(true)
     try {
-      const [uRes, rRes, urRes, daRes, sRes, vRes] = await Promise.all([
+      const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate()
+      const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${daysInMonth}`
+
+      const [uRes, rRes, tpRes, sRes, vRes] = await Promise.all([
         supabase.from('users').select('*').eq('role', 'salesman').order('name'),
         supabase.from('routes').select('*').order('name'),
-        supabase.from('user_routes').select('*'),
-        supabase.from('daily_route_assignments').select('*').eq('assigned_date', selectedDate),
+        supabase.from('monthly_tour_plans').select('*')
+          .eq('plan_month', selectedMonth)
+          .eq('plan_year', selectedYear),
         supabase.from('stores').select('id, route_id'),
-        supabase.from('visits').select('id, store_id, salesman_id').eq('visited_date', selectedDate)
+        supabase.from('visits').select('id, store_id, salesman_id')
+          .gte('visited_date', startDate)
+          .lte('visited_date', endDate)
       ])
 
       setSalesmen(uRes.data || [])
       setRoutes(rRes.data || [])
-      setUserRoutes(urRes.data || [])
-      setDailyAssignments(daRes.data || [])
+      setTourPlans(tpRes.data || [])
       setStores(sRes.data || [])
       setVisits(vRes.data || [])
     } catch (err) {
-      console.error('Failed to load route assignments:', err)
+      console.error('Failed to load tour plans:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  async function toggleDailyAssignment(salesmanId, routeId) {
+  async function toggleTourPlan(salesmanId, routeId) {
     setSaving(`${salesmanId}-${routeId}`)
     try {
-      const existing = dailyAssignments.find(da => da.salesman_id === salesmanId && da.route_id === routeId)
+      const existing = tourPlans.find(tp => tp.salesman_id === salesmanId && tp.route_id === routeId)
       
       if (existing) {
-        await supabase.from('daily_route_assignments').delete().eq('id', existing.id)
-        setDailyAssignments(prev => prev.filter(da => da.id !== existing.id))
+        await supabase.from('monthly_tour_plans').delete().eq('id', existing.id)
+        setTourPlans(prev => prev.filter(tp => tp.id !== existing.id))
       } else {
-        const newAssignment = {
+        const newPlan = {
           salesman_id: salesmanId,
           route_id: routeId,
-          assigned_date: selectedDate,
+          plan_month: selectedMonth,
+          plan_year: selectedYear,
           assigned_by: profile?.id
         }
-        const { data, error } = await supabase.from('daily_route_assignments').insert(newAssignment).select()
+        const { data, error } = await supabase.from('monthly_tour_plans').insert(newPlan).select()
         if (error) throw error
         if (data && data[0]) {
-          setDailyAssignments(prev => [...prev, data[0]])
+          setTourPlans(prev => [...prev, data[0]])
         }
       }
     } catch (err) {
-      console.error('Failed to toggle assignment:', err)
-      alert('Error updating assignment: ' + err.message)
+      console.error('Failed to toggle tour plan:', err)
+      alert('Error updating tour plan: ' + err.message)
     } finally {
       setSaving(null)
     }
   }
 
-  function navigateDate(days) {
-    const d = new Date(selectedDate + 'T00:00:00')
-    d.setDate(d.getDate() + days)
-    setSelectedDate(d.toISOString().split('T')[0])
+  function navigateMonth(dir) {
+    let m = selectedMonth + dir
+    let y = selectedYear
+    if (m > 12) { m = 1; y += 1 }
+    else if (m < 1) { m = 12; y -= 1 }
+    setSelectedMonth(m)
+    setSelectedYear(y)
   }
+
+  const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
 
   // Calculate Route Analysis Stats
   let totalAssignedRoutes = 0
@@ -86,14 +97,14 @@ export default function RouteAssignments() {
   let totalVisitedStores = 0
 
   salesmen.forEach(sm => {
-    const smAssignments = dailyAssignments.filter(da => da.salesman_id === sm.id).map(da => da.route_id)
-    totalAssignedRoutes += smAssignments.length
+    const smPlans = tourPlans.filter(tp => tp.salesman_id === sm.id).map(tp => tp.route_id)
+    totalAssignedRoutes += smPlans.length
     
     // Find stores in these assigned routes
-    const targetStoresForSm = stores.filter(s => smAssignments.includes(s.route_id))
+    const targetStoresForSm = stores.filter(s => smPlans.includes(s.route_id))
     totalTargetStores += targetStoresForSm.length
 
-    // Find visits by this salesman to those stores
+    // Find visits by this salesman to those stores in the month
     const targetStoreIds = targetStoresForSm.map(s => s.id)
     const visitsBySm = visits.filter(v => v.salesman_id === sm.id && targetStoreIds.includes(v.store_id))
     // Count unique stores visited
@@ -107,31 +118,24 @@ export default function RouteAssignments() {
     <div className="page-container md:pb-6">
       {/* Header */}
       <div className="mb-6 animate-fade-in-up">
-        <h1 className="text-2xl font-bold text-gray-800">Daily Route Assignments</h1>
-        <p className="text-sm text-gray-500">Task salesmen and analyze route coverage</p>
+        <h1 className="text-2xl font-bold text-gray-800">Monthly Tour Plan</h1>
+        <p className="text-sm text-gray-500">Assign monthly routes to salesmen and track coverage</p>
       </div>
 
-      {/* Date Navigation */}
+      {/* Month Navigation */}
       <div className="flex items-center gap-3 mb-6 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
         <button
-          onClick={() => navigateDate(-1)}
+          onClick={() => navigateMonth(-1)}
           className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
         >
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="flex-1 text-center">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="input-field text-center font-semibold max-w-[200px] mx-auto"
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            {selectedDate === today ? "Today / आज" : new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}
-          </p>
+          <p className="text-lg font-bold text-gray-800">{monthName}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Tour Plan Cycle</p>
         </div>
         <button
-          onClick={() => navigateDate(1)}
+          onClick={() => navigateMonth(1)}
           className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
         >
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -160,18 +164,16 @@ export default function RouteAssignments() {
         /* Salesman Cards */
         <div className="space-y-4 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
           {salesmen.length === 0 ? (
-            <EmptyState icon="👥" title="No salesmen found" description="Add salesmen to assign them routes." />
+            <EmptyState icon="👥" title="No salesmen found" description="Add salesmen to assign them tour plans." />
           ) : (
             salesmen.map((sm) => {
-              // Show ALL routes as per user request so manager can assign any route
-              let smAvailableRoutes = routes.map(r => r.id)
-              
-              const smAssignments = dailyAssignments.filter(da => da.salesman_id === sm.id).map(da => da.route_id)
+              const smAvailableRoutes = routes.map(r => r.id)
+              const smPlans = tourPlans.filter(tp => tp.salesman_id === sm.id).map(tp => tp.route_id)
               
               // Compute individual analysis
-              const smTargetStores = stores.filter(s => smAssignments.includes(s.route_id))
-              const smVisits = visits.filter(v => v.salesman_id === sm.id && smTargetStores.some(s => s.id === v.store_id))
-              const smUniqueVisits = new Set(smVisits.map(v => v.store_id)).size
+              const smTargetStores = stores.filter(s => smPlans.includes(s.route_id))
+              const smVisitsData = visits.filter(v => v.salesman_id === sm.id && smTargetStores.some(s => s.id === v.store_id))
+              const smUniqueVisits = new Set(smVisitsData.map(v => v.store_id)).size
               const smCoverage = smTargetStores.length > 0 ? Math.round((smUniqueVisits / smTargetStores.length) * 100) : 0
 
               return (
@@ -187,7 +189,7 @@ export default function RouteAssignments() {
                         <p className="text-xs text-gray-500">{routes.length} total routes</p>
                       </div>
                     </div>
-                    {smAssignments.length > 0 && (
+                    {smPlans.length > 0 && (
                       <div className="text-right">
                         <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">Coverage</p>
                         <div className="flex items-center gap-2">
@@ -210,33 +212,31 @@ export default function RouteAssignments() {
                           const route = routes.find(r => r.id === routeId)
                           if (!route) return null
                           
-                          const isAssignedToday = smAssignments.includes(routeId)
+                          const isAssignedThisMonth = smPlans.includes(routeId)
                           const isUpdating = saving === `${sm.id}-${routeId}`
-                          
-                          // Store count for this specific route
                           const routeStores = stores.filter(s => s.route_id === routeId).length
                           
                           return (
                             <button
                               key={routeId}
-                              onClick={() => toggleDailyAssignment(sm.id, routeId)}
+                              onClick={() => toggleTourPlan(sm.id, routeId)}
                               disabled={isUpdating}
                               className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all
-                                ${isAssignedToday 
+                                ${isAssignedThisMonth 
                                   ? 'bg-brand-50 border-brand-300 ring-1 ring-brand-300 shadow-sm' 
                                   : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                 }
                                 ${isUpdating ? 'opacity-50' : 'active:scale-[0.98]'}`}
                             >
                               <div>
-                                <p className={`text-sm font-semibold ${isAssignedToday ? 'text-brand-800' : 'text-gray-700'}`}>
+                                <p className={`text-sm font-semibold ${isAssignedThisMonth ? 'text-brand-800' : 'text-gray-700'}`}>
                                   {route.name}
                                 </p>
                                 <p className="text-[10px] text-gray-500 mt-0.5">{routeStores} stores</p>
                               </div>
                               <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0
-                                ${isAssignedToday ? 'bg-brand-600 border-brand-600 text-white' : 'border-gray-300'}`}>
-                                {isAssignedToday && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                ${isAssignedThisMonth ? 'bg-brand-600 border-brand-600 text-white' : 'border-gray-300'}`}>
+                                {isAssignedThisMonth && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                               </div>
                             </button>
                           )

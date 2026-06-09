@@ -26,7 +26,7 @@ import ManageStores from './pages/ManageStores'
 import ManageUsers from './pages/ManageUsers'
 import ManageAttendance from './pages/ManageAttendance'
 import VisitReport from './pages/VisitReport'
-import RouteAssignments from './pages/RouteAssignments'
+import TourPlan from './pages/TourPlan'
 
 import { syncOfflineVisits } from './lib/syncVisits'
 import { useEffect } from 'react'
@@ -124,7 +124,7 @@ export default function App() {
             {isManager && (
               <>
                 <Route path="/attendance" element={<ManageAttendance />} />
-                <Route path="/daily-assignments" element={<RouteAssignments />} />
+                <Route path="/tour-plan" element={<TourPlan />} />
                 <Route path="/map" element={<MapView />} />
                 <Route path="/ledger" element={<CollectionsLedger />} />
                 <Route path="/performance" element={<SalesmanPerformance />} />

@@ -8,9 +8,12 @@ export default function SalesmanHome() {
   const { profile, signOut } = useAuth()
   const [todayVisits, setTodayVisits] = useState([])
   const [todayCollections, setTodayCollections] = useState([])
-  const [dailyRoutes, setDailyRoutes] = useState([])
+  const [tourPlans, setTourPlans] = useState([])
   const [loading, setLoading] = useState(true)
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  const currentMonth = today.getMonth() + 1
+  const currentYear = today.getFullYear()
 
   function getGreeting() {
     const hour = new Date().getHours()
@@ -23,14 +26,14 @@ export default function SalesmanHome() {
 
   async function loadData() {
     try {
-      const [vRes, cRes, dailyRes] = await Promise.all([
-        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
-        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
-        supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today)
+      const [vRes, cRes, tpRes] = await Promise.all([
+        supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', todayStr),
+        supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', todayStr),
+        supabase.from('monthly_tour_plans').select('*, routes(name)').eq('salesman_id', profile?.id).eq('plan_month', currentMonth).eq('plan_year', currentYear)
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])
-      setDailyRoutes(dailyRes.data || [])
+      setTourPlans(tpRes.data || [])
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }
 
@@ -50,12 +53,12 @@ export default function SalesmanHome() {
         </button>
       </div>
 
-      {dailyRoutes.length > 0 && (
+      {tourPlans.length > 0 && (
         <div className="mb-6 animate-fade-in-up bg-brand-50 border border-brand-200 rounded-xl p-4 shadow-sm flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center shrink-0 text-xl">🎯</div>
           <div>
-            <h3 className="font-bold text-brand-800 text-sm">Today's Route Assignment</h3>
-            <p className="text-xs text-brand-600 mt-0.5 font-medium">Please focus on visiting: {dailyRoutes.map(d => d.routes?.name).join(', ')}</p>
+            <h3 className="font-bold text-brand-800 text-sm">This Month's Tour Plan</h3>
+            <p className="text-xs text-brand-600 mt-0.5 font-medium">Please focus on visiting: {tourPlans.map(tp => tp.routes?.name).join(', ')}</p>
           </div>
         </div>
       )}
