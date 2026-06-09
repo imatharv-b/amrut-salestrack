@@ -13,14 +13,14 @@ const salesmanLinks = [
 const managerLinks = [
   { to: '/', label: 'Dash', icon: <span className="text-xl leading-none">📊</span> },
   { to: '/attendance', label: 'Attend', icon: <span className="text-xl leading-none">📋</span> },
-  { to: '/map', label: 'Map', icon: <span className="text-xl leading-none">🗺️</span> },
-  { to: '/ledger', label: 'Ledger', icon: <span className="text-xl leading-none">🧾</span> },
+  { to: '/tour-plan', label: 'Tour', icon: <span className="text-xl leading-none">🎯</span> },
+  { to: '/visit-report', label: 'Reports', icon: <span className="text-xl leading-none">📅</span> },
 ]
 
 const extraManagerMenu = [
-  { to: '/daily-assignments', label: 'Daily Assignments', icon: '🎯' },
+  { to: '/map', label: 'Live Map', icon: '🗺️' },
+  { to: '/ledger', label: 'Ledger', icon: '🧾' },
   { to: '/performance', label: 'Salesman Performance', icon: '👥' },
-  { to: '/visit-report', label: 'Visit Report', icon: '📅' },
   { to: '/routes', label: 'Manage Routes', icon: '🛣️' },
   { to: '/stores', label: 'Manage Stores', icon: '🏪' },
   { to: '/users', label: 'Manage Users', icon: '🛡️' },
