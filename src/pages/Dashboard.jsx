@@ -49,7 +49,7 @@ export default function Dashboard() {
         supabase.from('daily_route_assignments').select('*').eq('assigned_date', today),
         supabase.from('routes').select('id, name'),
         supabase.from('user_routes').select('*'),
-        supabase.from('chat_messages').select('message, created_at, sender_id').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
+        supabase.from('chat_messages').select('message, created_at, sender_id, sender:users!chat_messages_sender_id_fkey(name)').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
       ])
 
       const stores = storesRes.data || []
@@ -155,6 +155,20 @@ export default function Dashboard() {
     }
   }
 
+  // Listen for realtime broadcasts
+  useEffect(() => {
+    const channel = supabase.channel('public:chat_messages:broadcasts_dashboard')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'receiver_id=is.null' }, async (payload) => {
+        // Fetch the sender name
+        const { data } = await supabase.from('users').select('name').eq('id', payload.new.sender_id).single()
+        const newBroadcast = { ...payload.new, sender: data }
+        setBroadcasts(prev => [newBroadcast, ...prev].slice(0, 3))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   // Handle salesman bar click
   function handleBarClick(data) {
     if (!data || !data.salesmanId) return
@@ -256,10 +270,13 @@ export default function Dashboard() {
               <div className="divide-y divide-amber-100/50 relative z-10">
                 {broadcasts.map((b, i) => (
                   <div key={i} className="p-4 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-colors">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-xs font-bold text-amber-700">{b.sender?.name || 'Manager Support'}</span>
+                      <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                        {new Date(b.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
                     <p className="text-gray-800 text-[15px] whitespace-pre-wrap leading-snug font-medium">{b.message}</p>
-                    <p className="text-[10px] text-amber-600 mt-2 font-bold uppercase tracking-wider">
-                      {new Date(b.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
-                    </p>
                   </div>
                 ))}
               </div>

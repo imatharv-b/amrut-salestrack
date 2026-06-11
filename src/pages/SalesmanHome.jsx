@@ -29,7 +29,7 @@ export default function SalesmanHome() {
         supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
         supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
         supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today),
-        supabase.from('chat_messages').select('message, created_at').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
+        supabase.from('chat_messages').select('message, created_at, sender_id, sender:users!chat_messages_sender_id_fkey(name)').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])
@@ -44,6 +44,20 @@ export default function SalesmanHome() {
       }
     } catch (err) { console.error(err) } finally { setLoading(false) }
   }
+
+  // Listen for realtime broadcasts
+  useEffect(() => {
+    const channel = supabase.channel('public:chat_messages:broadcasts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: 'receiver_id=is.null' }, async (payload) => {
+        // Fetch the sender name since payload only gives us the raw row
+        const { data } = await supabase.from('users').select('name').eq('id', payload.new.sender_id).single()
+        const newBroadcast = { ...payload.new, sender: data }
+        setBroadcasts(prev => [newBroadcast, ...prev].slice(0, 3))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const totalCollectedToday = todayCollections.reduce((sum, c) => sum + Number(c.amount), 0)
 
@@ -70,10 +84,13 @@ export default function SalesmanHome() {
           <div className="divide-y divide-amber-100/50 relative z-10">
             {broadcasts.map((b, i) => (
               <div key={i} className="p-4 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-colors">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-xs font-bold text-amber-700">{b.sender?.name || 'Manager Support'}</span>
+                  <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">
+                    {new Date(b.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
                 <p className="text-gray-800 text-[15px] whitespace-pre-wrap leading-snug font-medium">{b.message}</p>
-                <p className="text-[10px] text-amber-600 mt-2 font-bold uppercase tracking-wider">
-                  {new Date(b.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
-                </p>
               </div>
             ))}
           </div>
