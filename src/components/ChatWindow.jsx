@@ -18,7 +18,9 @@ export default function ChatWindow() {
 
     if (isManager) {
       supabase.from('users').select('id, name').eq('role', 'salesman').order('name')
-        .then(({ data }) => setSalesmen(data || []))
+        .then(({ data }) => {
+          setSalesmen([{ id: 'broadcast', name: '📢 Broadcast to All Salesmen' }, ...(data || [])])
+        })
     } else if (isSalesman) {
       supabase.from('users').select('id, name').eq('role', 'manager').limit(1)
         .then(({ data }) => {
@@ -36,11 +38,15 @@ export default function ChatWindow() {
 
     const fetchMessages = async () => {
       setLoading(true)
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .or(`and(sender_id.eq.${profile.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${profile.id})`)
-        .order('created_at', { ascending: true })
+      const query = supabase.from('chat_messages').select('*').order('created_at', { ascending: true })
+      
+      if (selectedUser.id === 'broadcast') {
+        query.is('receiver_id', null).eq('sender_id', profile.id)
+      } else {
+        query.or(`and(sender_id.eq.${profile.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${profile.id})`)
+      }
+
+      const { data } = await query
       
       if (isMounted) {
         setMessages(data || [])
@@ -50,6 +56,8 @@ export default function ChatWindow() {
     }
 
     fetchMessages()
+
+    if (selectedUser.id === 'broadcast') return // No realtime needed for manager's own broadcasts
 
     const channel = supabase.channel(`chat_${profile.id}_${selectedUser.id}`)
       .on('postgres_changes', {
@@ -83,7 +91,7 @@ export default function ChatWindow() {
 
     const msg = {
       sender_id: profile.id,
-      receiver_id: selectedUser.id,
+      receiver_id: selectedUser.id === 'broadcast' ? null : selectedUser.id,
       message: newMessage.trim(),
       created_at: new Date().toISOString()
     }
@@ -149,12 +157,12 @@ export default function ChatWindow() {
                       onClick={() => setSelectedUser(sm)}
                       className="w-full flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100 hover:border-brand-300 hover:shadow-md transition text-left active:scale-95"
                     >
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600 font-bold text-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-brand-200">
-                        {sm.name.charAt(0)}
+                      <div className={`w-12 h-12 rounded-full ${sm.id === 'broadcast' ? 'bg-amber-100 text-amber-600' : 'bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600'} font-bold text-lg flex items-center justify-center flex-shrink-0 shadow-sm border ${sm.id === 'broadcast' ? 'border-amber-200' : 'border-brand-200'}`}>
+                        {sm.id === 'broadcast' ? '📢' : sm.name.charAt(0)}
                       </div>
                       <div className="flex-1">
                         <div className="font-bold text-gray-800 text-base">{sm.name}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">Tap to open chat</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{sm.id === 'broadcast' ? 'Send a message to everyone' : 'Tap to open chat'}</div>
                       </div>
                     </button>
                   ))}

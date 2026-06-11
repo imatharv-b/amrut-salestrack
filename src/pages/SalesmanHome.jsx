@@ -10,6 +10,7 @@ export default function SalesmanHome() {
   const [todayCollections, setTodayCollections] = useState([])
   const [dailyRoutes, setDailyRoutes] = useState([])
   const [assignedStores, setAssignedStores] = useState([])
+  const [broadcasts, setBroadcasts] = useState([])
   const [loading, setLoading] = useState(true)
   const today = new Date().toISOString().split('T')[0]
 
@@ -24,13 +25,15 @@ export default function SalesmanHome() {
 
   async function loadData() {
     try {
-      const [vRes, cRes, dailyRes] = await Promise.all([
+      const [vRes, cRes, dailyRes, broadcastRes] = await Promise.all([
         supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
         supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
-        supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today)
+        supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today),
+        supabase.from('chat_messages').select('message, created_at').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])
+      setBroadcasts(broadcastRes.data || [])
       const routes = dailyRes.data || []
       setDailyRoutes(routes)
 
@@ -57,6 +60,25 @@ export default function SalesmanHome() {
           Logout
         </button>
       </div>
+
+      {broadcasts.length > 0 && (
+        <div className="mb-6 animate-fade-in-up bg-amber-50 border border-amber-200 rounded-xl overflow-hidden shadow-sm relative overflow-hidden">
+          <div className="bg-gradient-to-r from-amber-400 to-amber-500 px-4 py-2.5 flex items-center gap-2 shadow-sm relative z-10">
+            <span className="text-xl animate-pulse">📢</span>
+            <h3 className="font-bold text-white text-sm tracking-wide uppercase">Manager Announcements</h3>
+          </div>
+          <div className="divide-y divide-amber-100/50 relative z-10">
+            {broadcasts.map((b, i) => (
+              <div key={i} className="p-4 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-colors">
+                <p className="text-gray-800 text-[15px] whitespace-pre-wrap leading-snug font-medium">{b.message}</p>
+                <p className="text-[10px] text-amber-600 mt-2 font-bold uppercase tracking-wider">
+                  {new Date(b.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {dailyRoutes.length > 0 && (
         <div className="mb-6 animate-fade-in-up bg-brand-50 border border-brand-200 rounded-xl p-4 shadow-sm">
