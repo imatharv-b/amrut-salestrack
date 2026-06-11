@@ -19,6 +19,7 @@ export default function Dashboard() {
   // Drill-down state
   const [selectedSalesman, setSelectedSalesman] = useState(null)
   const [salesmanModalData, setSalesmanModalData] = useState(null)
+  const [broadcasts, setBroadcasts] = useState([])
 
   // Raw data refs for drill-down
   const [rawData, setRawData] = useState({
@@ -36,7 +37,7 @@ export default function Dashboard() {
   async function loadDashboardData() {
     setLoading(true)
     try {
-      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes, assignmentsRes, routesRes, userRoutesRes] = await Promise.all([
+      const [storesRes, visitsRes, collectionsRes, invoicesRes, usersRes, attendanceRes, assignmentsRes, routesRes, userRoutesRes, broadcastsRes] = await Promise.all([
         supabase.from('stores').select('id, name, village, route_id'),
         supabase.from('visits').select('id, store_id, salesman_id, visited_date').eq('visited_date', today),
         supabase.from('collections').select('id, store_id, salesman_id, amount, payment_date, payment_mode, remarks'),
@@ -47,7 +48,8 @@ export default function Dashboard() {
           .lte('date', lastDayOfMonth),
         supabase.from('daily_route_assignments').select('*').eq('assigned_date', today),
         supabase.from('routes').select('id, name'),
-        supabase.from('user_routes').select('*')
+        supabase.from('user_routes').select('*'),
+        supabase.from('chat_messages').select('message, created_at, sender_id').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
       ])
 
       const stores = storesRes.data || []
@@ -59,6 +61,7 @@ export default function Dashboard() {
       const assignmentsToday = assignmentsRes.data || []
       const allRoutes = routesRes.data || []
       const userRoutes = userRoutesRes.data || []
+      setBroadcasts(broadcastsRes?.data || []) // Using destructured variable
 
       // Save raw data for drill-down
       setRawData({ collections, stores, salesmen, attendance })
@@ -243,6 +246,25 @@ export default function Dashboard() {
               <StatCard icon="🏃‍♂️" label="Visits Today" value={stats.todayVisits} color="brand" />
             </div>
           </div>
+
+          {broadcasts.length > 0 && (
+            <div className="mb-6 animate-fade-in-up bg-amber-50 border border-amber-200 rounded-xl overflow-hidden shadow-sm relative overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-400 to-amber-500 px-4 py-2.5 flex items-center gap-2 shadow-sm relative z-10">
+                <span className="text-xl animate-pulse">📢</span>
+                <h3 className="font-bold text-white text-sm tracking-wide uppercase">Broadcast Announcements</h3>
+              </div>
+              <div className="divide-y divide-amber-100/50 relative z-10">
+                {broadcasts.map((b, i) => (
+                  <div key={i} className="p-4 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-colors">
+                    <p className="text-gray-800 text-[15px] whitespace-pre-wrap leading-snug font-medium">{b.message}</p>
+                    <p className="text-[10px] text-amber-600 mt-2 font-bold uppercase tracking-wider">
+                      {new Date(b.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Daily Route Coverage - UTMOST PRIORITY */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up mb-6">
