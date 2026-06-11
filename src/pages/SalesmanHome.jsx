@@ -29,7 +29,7 @@ export default function SalesmanHome() {
         supabase.from('visits').select('*, stores(name, village)').eq('salesman_id', profile?.id).eq('visited_date', today),
         supabase.from('collections').select('*, stores(name)').eq('salesman_id', profile?.id).eq('payment_date', today),
         supabase.from('daily_route_assignments').select('*, routes(name)').eq('salesman_id', profile?.id).eq('assigned_date', today),
-        supabase.from('chat_messages').select('message, created_at, sender_id, sender:users!chat_messages_sender_id_fkey(name)').is('receiver_id', null).order('created_at', { ascending: false }).limit(3)
+        supabase.from('chat_messages').select('message, created_at, sender_id, sender:users!chat_messages_sender_id_fkey(name)').is('receiver_id', null).order('created_at', { ascending: false })
       ])
       setTodayVisits(vRes.data || [])
       setTodayCollections(cRes.data || [])
@@ -52,7 +52,7 @@ export default function SalesmanHome() {
         // Fetch the sender name since payload only gives us the raw row
         const { data } = await supabase.from('users').select('name').eq('id', payload.new.sender_id).single()
         const newBroadcast = { ...payload.new, sender: data }
-        setBroadcasts(prev => [newBroadcast, ...prev].slice(0, 3))
+        setBroadcasts(prev => [newBroadcast, ...prev])
       })
       .subscribe()
 
@@ -81,7 +81,7 @@ export default function SalesmanHome() {
             <span className="text-xl animate-pulse">📢</span>
             <h3 className="font-bold text-white text-sm tracking-wide uppercase">Manager Announcements</h3>
           </div>
-          <div className="divide-y divide-amber-100/50 relative z-10">
+          <div className="divide-y divide-amber-100/50 relative z-10 max-h-64 overflow-y-auto">
             {broadcasts.map((b, i) => (
               <div key={i} className="p-4 bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-colors">
                 <div className="flex justify-between items-start mb-1">
