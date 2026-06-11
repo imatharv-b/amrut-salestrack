@@ -3,6 +3,9 @@ import { useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import LoadingSpinner from './components/LoadingSpinner'
 import React from 'react'
+import { supabase } from './lib/supabase'
+
+import ChatWindow from './components/ChatWindow'
 
 // Auth Pages
 import Login from './pages/Login'
@@ -100,6 +103,11 @@ export default function App() {
     // Try to sync on mount in case it came back online when app was closed
     syncOfflineVisits()
     
+    // Auto-cleanup old chat messages (older than 48 hrs)
+    supabase.rpc('cleanup_old_chats').then(({ error }) => {
+      if (error) console.error('Chat cleanup failed:', error)
+    })
+
     return () => window.removeEventListener('online', syncOfflineVisits)
   }, [])
 
@@ -151,6 +159,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      {user && <ChatWindow />}
     </ErrorBoundary>
   )
 }
