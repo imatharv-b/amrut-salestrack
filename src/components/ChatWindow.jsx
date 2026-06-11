@@ -19,7 +19,7 @@ export default function ChatWindow() {
     if (isManager) {
       supabase.from('users').select('id, name').eq('role', 'salesman').order('name')
         .then(({ data }) => {
-          setSalesmen([{ id: 'broadcast', name: '📢 Broadcast to All Salesmen' }, ...(data || [])])
+          setSalesmen([{ id: 'broadcast', name: '📢 Broadcast to All (Managers & Salesmen)' }, ...(data || [])])
         })
     } else if (isSalesman) {
       supabase.from('users').select('id, name').eq('role', 'manager').limit(1)
