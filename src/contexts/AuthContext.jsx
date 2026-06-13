@@ -82,7 +82,7 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
-  const value = { user, profile, loading, signIn, signUp, signOut, isManager: profile?.role === 'manager', isSalesman: profile?.role === 'salesman', isViewer: profile?.role === 'viewer' }
+  const value = { user, profile, loading, signIn, signUp, signOut, isManager: profile?.role === 'manager', isSalesman: profile?.role === 'salesman' }
 
   return (<AuthContext.Provider value={value}>{children}</AuthContext.Provider>)
 }

@@ -17,13 +17,6 @@ const managerLinks = [
   { to: '/visit-report', label: 'Reports', icon: <span className="text-xl leading-none">📅</span> },
 ]
 
-const viewerLinks = [
-  { to: '/', label: 'Dash', icon: <span className="text-xl leading-none">📊</span> },
-  { to: '/ledger', label: 'Ledger', icon: <span className="text-xl leading-none">🧾</span> },
-  { to: '/performance', label: 'Perf', icon: <span className="text-xl leading-none">👥</span> },
-  { to: '/visit-report', label: 'Reports', icon: <span className="text-xl leading-none">📅</span> },
-]
-
 const extraManagerMenu = [
   { to: '/map', label: 'Live Map', icon: '🗺️' },
   { to: '/ledger', label: 'Ledger', icon: '🧾' },
@@ -35,10 +28,10 @@ const extraManagerMenu = [
 
 export default function BottomNav() {
   const location = useLocation()
-  const { isManager, isViewer } = useAuth()
+  const { isManager } = useAuth()
   const [showMenu, setShowMenu] = useState(false)
 
-  const linksToUse = isViewer ? viewerLinks : (isManager ? managerLinks : salesmanLinks)
+  const linksToUse = isManager ? managerLinks : salesmanLinks
   const isExtraMenuActive = isManager && extraManagerMenu.some(m => m.to === location.pathname)
 
   return (
