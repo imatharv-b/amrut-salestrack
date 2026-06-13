@@ -160,15 +160,16 @@ export default function ManageUsers() {
 
   const salesmen = users.filter(u => u.role === 'salesman')
   const managers = users.filter(u => u.role === 'manager')
+  const viewers = users.filter(u => u.role === 'viewer')
 
   return (
     <div className="page-container md:pb-6">
       <div className="flex items-center justify-between mb-6 animate-fade-in-up">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Manage Users</h1>
-          <p className="text-sm text-gray-500">{salesmen.length} salesmen • {managers.length} managers</p>
+          <p className="text-sm text-gray-500">{salesmen.length} salesmen • {managers.length} managers • {viewers.length} viewers</p>
         </div>
-        <button onClick={openAdd} className="px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold shadow-md shadow-brand-600/25 hover:bg-brand-700 active:scale-95 transition-all">+ Add Salesman</button>
+        <button onClick={openAdd} className="px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold shadow-md shadow-brand-600/25 hover:bg-brand-700 active:scale-95 transition-all">+ Add User</button>
       </div>
 
       {loading ? (
@@ -196,10 +197,10 @@ export default function ManageUsers() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{u.phone || 'N/A'}</td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${u.role === 'manager' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role.toUpperCase()}</span>
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${u.role === 'manager' ? 'bg-purple-100 text-purple-700' : (u.role === 'viewer' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}`}>{u.role.toUpperCase()}</span>
                     </td>
                     <td className="px-6 py-4">
-                      {u.role === 'manager' ? (
+                      {(u.role === 'manager' || u.role === 'viewer') ? (
                         <span className="text-gray-400 italic text-xs">Unrestricted</span>
                       ) : (
                         <div className="flex flex-wrap gap-1 max-w-xs">
@@ -239,7 +240,7 @@ export default function ManageUsers() {
                     <p className="font-semibold text-gray-800">{u.name}</p>
                     <p className="text-xs text-gray-500">{u.phone || 'No phone'}</p>
                   </div>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${u.role === 'manager' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{u.role.toUpperCase()}</span>
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${u.role === 'manager' ? 'bg-purple-100 text-purple-700' : (u.role === 'viewer' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}`}>{u.role.toUpperCase()}</span>
                 </div>
                 <div className="flex flex-col gap-2 mt-2">
                   {u.role === 'salesman' ? (
@@ -307,6 +308,7 @@ export default function ManageUsers() {
               <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="input-field">
                 <option value="salesman">Salesman</option>
                 <option value="manager">Manager</option>
+                <option value="viewer">Viewer (Read Only)</option>
               </select>
             </div>
           </div>

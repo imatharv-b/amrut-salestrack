@@ -85,18 +85,19 @@ class ErrorBoundary extends React.Component {
 }
 
 function ProtectedRoute({ children, requireRole }) {
-  const { user, isManager, isSalesman } = useAuth()
+  const { user, isManager, isSalesman, isViewer } = useAuth()
   
   if (!user) return <Navigate to="/login" replace />
   
   if (requireRole === 'manager' && !isManager) return <Navigate to="/" replace />
   if (requireRole === 'salesman' && !isSalesman) return <Navigate to="/" replace />
+  if (requireRole === 'viewer' && !isViewer) return <Navigate to="/" replace />
   
   return children
 }
 
 export default function App() {
-  const { user, loading, isManager, isSalesman } = useAuth()
+  const { user, loading, isManager, isSalesman, isViewer } = useAuth()
 
   useEffect(() => {
     window.addEventListener('online', syncOfflineVisits)
@@ -125,8 +126,17 @@ export default function App() {
             
             {/* Default Routing based on Role */}
             <Route path="/" element={
-               isManager ? <Dashboard /> : (isSalesman ? <SalesmanHome /> : <div>No Assigned Role</div>)
+               isManager ? <Dashboard /> : (isSalesman ? <SalesmanHome /> : (isViewer ? <Dashboard /> : <div>No Assigned Role</div>))
             } />
+
+            {/* Manager & Viewer Shared Routes */}
+            {(isManager || isViewer) && (
+              <>
+                <Route path="/ledger" element={<CollectionsLedger />} />
+                <Route path="/performance" element={<SalesmanPerformance />} />
+                <Route path="/visit-report" element={<VisitReport />} />
+              </>
+            )}
 
             {/* Manager Specific Routes */}
             {isManager && (
@@ -134,9 +144,6 @@ export default function App() {
                 <Route path="/attendance" element={<ManageAttendance />} />
                 <Route path="/tour-plan" element={<TourPlan />} />
                 <Route path="/map" element={<MapView />} />
-                <Route path="/ledger" element={<CollectionsLedger />} />
-                <Route path="/performance" element={<SalesmanPerformance />} />
-                <Route path="/visit-report" element={<VisitReport />} />
                 <Route path="/routes" element={<ManageRoutes />} />
                 <Route path="/stores" element={<ManageStores />} />
                 <Route path="/users" element={<ManageUsers />} />
