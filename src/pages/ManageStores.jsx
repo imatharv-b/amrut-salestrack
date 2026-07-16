@@ -37,6 +37,17 @@ export default function ManageStores() {
     return matchRoute && matchSearch
   })
 
+  function getCategoryStyle(cat) {
+    switch (cat) {
+      case 'A+': return 'bg-purple-100 text-purple-700 border border-purple-200 shadow-sm shadow-purple-100'
+      case 'A': return 'bg-green-100 text-green-700 border border-green-200'
+      case 'B': return 'bg-blue-100 text-blue-700 border border-blue-200'
+      case 'C': return 'bg-amber-100 text-amber-700 border border-amber-200'
+      case 'D': return 'bg-red-100 text-red-700 border border-red-200'
+      default: return 'bg-gray-100 text-gray-600 border border-gray-200'
+    }
+  }
+
   function openAdd() { setEditStore(null); setError(''); setFormData({ route_id: '', name: '', contact_person: '', phone: '', village: '', gps_lat: '', gps_lng: '', credit_limit: 0, dealer_category: 'B' }); setModalOpen(true) }
   function openEdit(store) { setEditStore(store); setError(''); setFormData({ route_id: store.route_id, name: store.name, contact_person: store.contact_person || '', phone: store.phone || '', village: store.village || '', gps_lat: store.gps_lat || '', gps_lng: store.gps_lng || '', credit_limit: store.credit_limit || 0, dealer_category: store.dealer_category || 'B' }); setModalOpen(true) }
 
@@ -81,7 +92,7 @@ export default function ManageStores() {
                     <td className="px-4 py-3 text-gray-600">{store.contact_person || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{store.village || '—'}</td>
                     <td className="px-4 py-3"><span className="badge-blue">{getRouteNameById(store.route_id)}</span></td>
-                    <td className="px-4 py-3 text-center"><span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${store.dealer_category === 'A' ? 'bg-green-100 text-green-700' : store.dealer_category === 'B' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{store.dealer_category || '—'}</span></td>
+                    <td className="px-4 py-3 text-center"><span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${getCategoryStyle(store.dealer_category)}`}>{store.dealer_category || '—'}</span></td>
                     <td className="px-4 py-3 text-right font-bold text-gray-700">₹{Number(store.credit_limit || 0).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 text-center">
                       <button onClick={() => openEdit(store)} className="text-gray-400 hover:text-brand-600 transition-colors mr-2">✏️</button>
@@ -95,7 +106,7 @@ export default function ManageStores() {
           <div className="md:hidden space-y-3 stagger-children">
             {filtered.map(store => (
               <div key={store.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm animate-fade-in-up" onClick={() => openEdit(store)}>
-                <div className="flex items-start justify-between mb-1"><div><p className="font-semibold text-gray-800">{store.name}</p><p className="text-xs text-gray-500">{store.contact_person || '—'} • {store.village || '—'}</p></div><span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${store.dealer_category === 'A' ? 'bg-green-100 text-green-700' : store.dealer_category === 'B' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{store.dealer_category || '—'}</span></div>
+                <div className="flex items-start justify-between mb-1"><div><p className="font-semibold text-gray-800">{store.name}</p><p className="text-xs text-gray-500">{store.contact_person || '—'} • {store.village || '—'}</p></div><span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${getCategoryStyle(store.dealer_category)}`}>{store.dealer_category || '—'}</span></div>
                 <div className="flex items-center gap-2 mt-1"><span className="badge-blue text-[10px]">{getRouteNameById(store.route_id)}</span><span className="text-xs text-gray-500">₹{Number(store.credit_limit || 0).toLocaleString('en-IN')}</span></div>
               </div>
             ))}
@@ -108,7 +119,7 @@ export default function ManageStores() {
           <div><label className="input-label">Route</label><select value={formData.route_id} onChange={e => setFormData({...formData, route_id: e.target.value})} className="input-field" required><option value="">Select Route</option>{routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
           <div><label className="input-label">Store / Krishi Kendra Name</label><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" required /></div>
           <div className="grid grid-cols-2 gap-3"><div><label className="input-label">Contact Person</label><input type="text" value={formData.contact_person} onChange={e => setFormData({...formData, contact_person: e.target.value})} className="input-field" /></div><div><label className="input-label">Phone</label><input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="input-field" /></div></div>
-          <div className="grid grid-cols-2 gap-3"><div><label className="input-label">Village / Town</label><input type="text" value={formData.village} onChange={e => setFormData({...formData, village: e.target.value})} className="input-field" /></div><div><label className="input-label">Dealer Category</label><select value={formData.dealer_category} onChange={e => setFormData({...formData, dealer_category: e.target.value})} className="input-field"><option value="A">A — Premium</option><option value="B">B — Regular</option><option value="C">C — Small</option></select></div></div>
+          <div className="grid grid-cols-2 gap-3"><div><label className="input-label">Village / Town</label><input type="text" value={formData.village} onChange={e => setFormData({...formData, village: e.target.value})} className="input-field" /></div><div><label className="input-label">Dealer Category</label><select value={formData.dealer_category} onChange={e => setFormData({...formData, dealer_category: e.target.value})} className="input-field"><option value="A+">A+ — Elite</option><option value="A">A — Premium</option><option value="B">B — Regular</option><option value="C">C — Small</option><option value="D">D — Defaulter</option></select></div></div>
           <div><label className="input-label">Credit Limit (₹)</label><input type="number" value={formData.credit_limit} onChange={e => setFormData({...formData, credit_limit: e.target.value})} className="input-field" /></div>
           <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : (editStore ? 'Update Store' : 'Add Store')}</button>
         </form>
