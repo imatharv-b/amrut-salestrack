@@ -312,11 +312,11 @@ export default function VisitReport() {
         </div>
       ) : viewMode === 'calendar' ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: '120ms' }}>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '65vh' }}>
             <table className="w-full text-xs border-collapse" style={{ minWidth: `${180 + daysInMonth * 36}px` }}>
-              <thead>
-                <tr className="bg-gray-800 text-white">
-                  <th className="text-left px-3 py-3 font-bold sticky left-0 bg-gray-800 z-10 min-w-[160px]">
+              <thead className="sticky top-0 z-20">
+                <tr className="bg-gray-800 text-white shadow-md">
+                  <th className="text-left px-3 py-3 font-bold sticky left-0 bg-gray-800 z-30 min-w-[160px]">
                     Store Name / दुकान
                   </th>
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
